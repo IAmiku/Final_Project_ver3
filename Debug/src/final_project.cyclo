@@ -1,0 +1,7 @@
+final_project.c:110:6:Gyro_Thread	1
+final_project.c:35:5:main	1
+final_project.c:53:6:USART1_IRQHandler	1
+final_project.c:57:6:HAL_UART_RxCpltCallback	1
+final_project.c:61:6:I2C_init	4
+final_project.c:97:6:UART_init	1
+final_project.c:132:6:UART_Thread	1

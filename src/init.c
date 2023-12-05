@@ -132,6 +132,9 @@ void Clock_Inits(void) {
 	__HAL_RCC_DMA1_CLK_ENABLE();
 	__HAL_RCC_DMA2_CLK_ENABLE();
 
+	// I2C Clock
+	__HAL_RCC_I2C1_CLK_ENABLE();
+
 }
 
 // SysTick Handler not included here as it is configured by the RTOS

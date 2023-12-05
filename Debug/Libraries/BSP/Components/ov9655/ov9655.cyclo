@@ -1,4 +1,4 @@
-../Libraries/BSP/Components/ov9655/ov9655.c:702:17:ov9655_ConvertValue	22
-../Libraries/BSP/Components/ov9655/ov9655.c:635:6:ov9655_Config	4
-../Libraries/BSP/Components/ov9655/ov9655.c:574:6:ov9655_Init	7
-../Libraries/BSP/Components/ov9655/ov9655.c:684:10:ov9655_ReadID	1
+ov9655.c:702:17:ov9655_ConvertValue	22
+ov9655.c:635:6:ov9655_Config	4
+ov9655.c:574:6:ov9655_Init	7
+ov9655.c:684:10:ov9655_ReadID	1
