@@ -1,0 +1,17 @@
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:99:6:HAL_PWR_DeInit	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:111:6:HAL_PWR_EnableBkUpAccess	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:123:6:HAL_PWR_DisableBkUpAccess	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:256:6:HAL_PWR_ConfigPVD	5
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:294:6:HAL_PWR_EnablePVD	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:303:6:HAL_PWR_DisablePVD	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:325:6:HAL_PWR_EnableWakeUpPin	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:349:6:HAL_PWR_DisableWakeUpPin	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:375:6:HAL_PWR_EnterSLEEPMode	2
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:418:6:HAL_PWR_EnterSTOPMode	2
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:467:6:HAL_PWR_EnterSTANDBYMode	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:502:13:HAL_PWR_PVDCallback	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:487:6:HAL_PWR_PVD_IRQHandler	2
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:516:6:HAL_PWR_EnableSleepOnExit	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:527:6:HAL_PWR_DisableSleepOnExit	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:538:6:HAL_PWR_EnableSEVOnPend	1
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr.c:549:6:HAL_PWR_DisableSEVOnPend	1
