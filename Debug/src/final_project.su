@@ -1,9 +1,9 @@
-../src/final_project.c:154:6:LCD_Thread	16	static
+../src/final_project.c:165:6:LCD_Thread	16	static
 ../src/final_project.c:41:5:main	8	static
 ../src/final_project.c:60:6:USART1_IRQHandler	8	static
 ../src/final_project.c:64:6:HAL_UART_RxCpltCallback	0	static
 ../src/final_project.c:68:6:I2C_init	32	static
-../src/final_project.c:120:6:Gyro_Thread	136	static
+../src/final_project.c:120:6:Gyro_Thread	160	static
 ../src/final_project.c:104:6:UART_init	8	static
-../src/final_project.c:149:6:UART_Thread	8	static
-../src/final_project.c:167:6:HAL_Delay	8	static
+../src/final_project.c:160:6:UART_Thread	8	static
+../src/final_project.c:178:6:HAL_Delay	8	static
