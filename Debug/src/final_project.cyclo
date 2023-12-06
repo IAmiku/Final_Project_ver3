@@ -1,9 +1,9 @@
-../src/final_project.c:145:6:LCD_Thread	1
-../src/final_project.c:61:6:USART1_IRQHandler	1
-../src/final_project.c:65:6:HAL_UART_RxCpltCallback	1
-../src/final_project.c:69:6:I2C_init	4
-../src/final_project.c:118:6:Gyro_Thread	1
-../src/final_project.c:105:6:UART_init	1
-../src/final_project.c:140:6:UART_Thread	1
-../src/final_project.c:154:6:HAL_Delay	4
+../src/final_project.c:154:6:LCD_Thread	1
 ../src/final_project.c:41:5:main	1
+../src/final_project.c:60:6:USART1_IRQHandler	1
+../src/final_project.c:64:6:HAL_UART_RxCpltCallback	1
+../src/final_project.c:68:6:I2C_init	4
+../src/final_project.c:120:6:Gyro_Thread	1
+../src/final_project.c:104:6:UART_init	1
+../src/final_project.c:149:6:UART_Thread	1
+../src/final_project.c:167:6:HAL_Delay	1

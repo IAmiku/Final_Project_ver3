@@ -41,10 +41,9 @@ void UART_init();
 int main(void) {
 	Sys_Init();
 
-	HAL_NVIC_SetPriority(SysTick_IRQn, 0,1);
+//	HAL_NVIC_SetPriority(SysTick_IRQn, 0,1);
 
 	// Initialize peripherals
-	HAL_Delay(10);
 	osKernelInitialize();
 	// Setup RTOS objects
 	GyroThreadHandle = osThreadNew(Gyro_Thread, NULL, &Gyro_Thread_attributes);
@@ -113,27 +112,37 @@ void UART_init() {
 	USB_UART_ptr->Init.Mode = UART_MODE_TX_RX;
 	USB_UART_ptr->Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	HAL_UART_Init(&USB_UART);
+    // Configure the NVIC for UART interrupts
+    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
 }
 
 void Gyro_Thread(void *argument) {
 	I2C_init();
 
-	uint8_t init_status = MPU6050_Init(&hi2c1);
+	volatile uint8_t init_status = MPU6050_Init(&hi2c1);
+	uint8_t message [100];
+
 
 	while(1) {
 //		HAL_Delay(100);
 		osDelay(100);
 		MPU6050_Read_Accel(&hi2c1, &mpu6050);
-		uint16_t acc_x = (uint16_t) mpu6050.Ax;
-		uint16_t acc_y = (uint16_t) mpu6050.Ay;
-		uint16_t acc_z = (uint16_t) mpu6050.Az;
-//		printf("Accelerometer X is %d, Y is %d, Z is %d \n\r", acc_x, acc_y, acc_z);
 		MPU6050_Read_Gyro(&hi2c1, &mpu6050);
 
-		uint16_t gyro_x = (uint16_t) mpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
-		uint16_t gyro_y = (uint16_t) mpu6050.Gy;
-		uint16_t gyro_z = (uint16_t) mpu6050.Gz;
-//		printf("Gyro X is %d, Y is %d, Z is %d \n\r", gyro_x, gyro_y, gyro_z);
+		int16_t acc_x = (int16_t) mpu6050.Ax;
+		int16_t acc_y = (int16_t) mpu6050.Ay;
+		int16_t acc_z = (int16_t) mpu6050.Az;
+
+		int16_t gyro_x = (int16_t) mpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
+		int16_t gyro_y = (int16_t) mpu6050.Gy;
+		int16_t gyro_z = (int16_t) mpu6050.Gz;
+		sprintf(message,"\033[0m\033[44;33m\033[2J\033[;H"
+				"Accelerometer X is %d, Y is %d, Z is %d \n\r"
+				"Gyro X is %d, Y is %d, Z is %d \n\r", acc_x, acc_y, acc_z,
+				gyro_x, gyro_y, gyro_z);
+		HAL_UART_Transmit_IT(&USB_UART, message,strlen(message));
+		osDelay(100);
 	}
 }
 
@@ -144,33 +153,18 @@ void UART_Thread(void *argument) {
 }
 void LCD_Thread(void *argument){
 	volatile uint8_t status = BSP_LCD_Init();
+	BSP_LCD_LayerDefaultInit(0,LCD_FB_START_ADDRESS);
 	BSP_LCD_SelectLayer(0);
 	BSP_LCD_Clear(LCD_COLOR_GRAY);
 	BSP_LCD_DisplayOn();
 	BSP_LCD_Clear(LCD_COLOR_RED);
 
-	while(1){}
+	while(1){
+
+	}
 }
+
 void HAL_Delay( uint32_t ulDelayMs )
 {
-    if( xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED )
-    {
-        vTaskDelay( pdMS_TO_TICKS( ulDelayMs ) );
-    }
-    else
-    {
-        uint32_t ulStartTick = HAL_GetTick();
-        uint32_t ulTicksWaited = ulDelayMs;
-
-        /* Add a freq to guarantee minimum wait */
-        if( ulTicksWaited < HAL_MAX_DELAY )
-        {
-            ulTicksWaited += ( uint32_t ) ( HAL_GetTickFreq() );
-        }
-
-        while( ( HAL_GetTick() - ulStartTick ) < ulTicksWaited )
-        {
-            __NOP();
-        }
-    }
+    vTaskDelay(ulDelayMs);
 }
