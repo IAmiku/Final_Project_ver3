@@ -1,7 +1,7 @@
-../src/final_project.c:36:5:main	8	static
-../src/final_project.c:54:6:USART1_IRQHandler	8	static
-../src/final_project.c:58:6:HAL_UART_RxCpltCallback	0	static
-../src/final_project.c:62:6:I2C_init	32	static
-../src/final_project.c:111:6:Gyro_Thread	16	static
-../src/final_project.c:98:6:UART_init	8	static
-../src/final_project.c:133:6:UART_Thread	8	static
+../src/final_project.c:37:5:main	16	static
+../src/final_project.c:60:6:USART1_IRQHandler	8	static
+../src/final_project.c:64:6:HAL_UART_RxCpltCallback	0	static
+../src/final_project.c:68:6:I2C_init	32	static
+../src/final_project.c:117:6:Gyro_Thread	16	static
+../src/final_project.c:104:6:UART_init	8	static
+../src/final_project.c:139:6:UART_Thread	8	static

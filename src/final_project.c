@@ -2,6 +2,7 @@
 
 #include "init.h"
 #include "mpu6050.h"
+
 #include "../Libraries/BSP/STM32F769I-Discovery/stm32f769i_discovery_lcd.h"
 // Defines
 
@@ -37,7 +38,12 @@ int main(void) {
 	Sys_Init();
 
 	// Initialize peripherals
-	BSP_LCD_Init();
+
+	volatile uint8_t status = BSP_LCD_Init();
+	BSP_LCD_SelectLayer(1);
+	BSP_LCD_DisplayOn();
+	BSP_LCD_Clear(0xFFFFFFFF);
+
 	osKernelInitialize();
 
 	// Setup RTOS objects
