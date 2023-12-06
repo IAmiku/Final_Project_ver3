@@ -2,6 +2,7 @@
 
 #include "init.h"
 #include "mpu6050.h"
+#include "../Libraries/BSP/STM32F769I-Discovery/stm32f769i_discovery_lcd.h"
 // Defines
 
 
@@ -36,7 +37,7 @@ int main(void) {
 	Sys_Init();
 
 	// Initialize peripherals
-
+	BSP_LCD_Init();
 	osKernelInitialize();
 
 	// Setup RTOS objects
@@ -108,7 +109,7 @@ void UART_init() {
 }
 
 void Gyro_Thread(void *argument) {
-	void I2C_init();
+	I2C_init();
 
 	uint8_t init_status = MPU6050_Init(&hi2c1);
 

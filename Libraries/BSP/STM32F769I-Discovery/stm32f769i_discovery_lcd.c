@@ -2,36 +2,17 @@
   ******************************************************************************
   * @file    stm32f769i_discovery_lcd.c
   * @author  MCD Application Team
-  * @version V2.0.0
-  * @date    30-December-2016
   * @brief   This file includes the driver for Liquid Crystal Display (LCD) module
   *          mounted on STM32F769I-DISCOVERY board.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -72,14 +53,28 @@
 
 ------------------------------------------------------------------------------*/
 
+/* Dependencies
+- stm32f769i_discovery.c
+- stm32f769i_discovery_sdram.c
+- stm32f7xx_hal_dsi.c
+- stm32f7xx_hal_ltdc.c
+- stm32f7xx_hal_ltdc_ex.c
+- stm32f7xx_hal_dma2d.c
+- stm32f7xx_hal_rcc_ex.c
+- stm32f7xx_hal_gpio.c
+- stm32f7xx_hal_cortex.c
+- otm8009a.c
+- adv7533.c
+- fonts.h
+- font24.c
+- font20.c
+- font16.c
+- font12.c
+- font8.c"
+EndDependencies */
+
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f769i_discovery_lcd.h"
-#include "../../Utilities/Fonts/fonts.h"
-//#include "../../Utilities/Fonts/font24.c"
-//#include "../../Utilities/Fonts/font20.c"
-//#include "../../Utilities/Fonts/font16.c"
-//#include "../../Utilities/Fonts/font12.c"
-//#include "../../Utilities/Fonts/font8.c"
 
 /** @addtogroup BSP
   * @{
@@ -101,7 +96,6 @@
 #define HDMI_ASPECT_RATIO_4_3   ADV7533_ASPECT_RATIO_4_3
 #endif /* USE_LCD_HDMI */    
 #define LCD_DSI_ID              0x11
-#define LCD_DSI_ADDRESS         TS_I2C_ADDRESS
 #define LCD_DSI_ID_REG          0xA8
 
 static DSI_VidCfgTypeDef hdsivideo_handle;
@@ -356,12 +350,21 @@ uint8_t BSP_LCD_InitEx(LCD_OrientationTypeDef orientation)
   VACT = lcd_y_size;
 
   /* The following values are same for portrait and landscape orientations */
-  VSA  = OTM8009A_480X800_VSYNC;        /* 12  */
-  VBP  = OTM8009A_480X800_VBP;          /* 12  */
-  VFP  = OTM8009A_480X800_VFP;          /* 12  */
-  HSA  = OTM8009A_480X800_HSYNC;        /* 63  */
-  HBP  = OTM8009A_480X800_HBP;          /* 120 */
-  HFP  = OTM8009A_480X800_HFP;          /* 120 */   
+#if defined (USE_STM32F769I_DISCO_REVB03)
+  VSA  = NT35510_480X800_VSYNC;
+  VBP  = NT35510_480X800_VBP;
+  VFP  = NT35510_480X800_VFP;
+  HSA  = NT35510_480X800_HSYNC;
+  HBP  = NT35510_480X800_HBP;
+  HFP  = NT35510_480X800_HFP;  
+#else
+  VSA  = OTM8009A_480X800_VSYNC;
+  VBP  = OTM8009A_480X800_VBP;
+  VFP  = OTM8009A_480X800_VFP;
+  HSA  = OTM8009A_480X800_HSYNC;
+  HBP  = OTM8009A_480X800_HBP;
+  HFP  = OTM8009A_480X800_HFP;
+#endif /* USE_STM32F769I_DISCO_REVB03 */
 
   hdsivideo_handle.VirtualChannelID = LCD_OTM8009A_ID;
   hdsivideo_handle.ColorCoding = LCD_DSI_PIXEL_DATA_FMT_RBG888;
@@ -459,6 +462,15 @@ uint8_t BSP_LCD_InitEx(LCD_OrientationTypeDef orientation)
 
 /************************End LTDC Initialization*******************************/
   
+#if defined(USE_STM32F769I_DISCO_REVB03)
+/***********************NT35510 Initialization********************************/  
+  
+  /* Initialize the NT35510 LCD Display IC Driver (TechShine LCD IC Driver)
+   * depending on configuration set in 'hdsivideo_handle'.
+   */
+  NT35510_Init(NT35510_FORMAT_RGB888, orientation);
+/***********************End NT35510 Initialization****************************/
+#else
   
 /***********************OTM8009A Initialization********************************/ 
 
@@ -468,6 +480,8 @@ uint8_t BSP_LCD_InitEx(LCD_OrientationTypeDef orientation)
   OTM8009A_Init(OTM8009A_FORMAT_RGB888, orientation);
 
 /***********************End OTM8009A Initialization****************************/ 
+#endif /* USE_STM32F769I_DISCO_REVB03 */
+
 
   return LCD_OK; 
 }
@@ -622,7 +636,7 @@ uint8_t BSP_LCD_HDMIInitEx(uint8_t format)
 
   HAL_LTDC_DeInit(&(hltdc_discovery));
 
-  /* Timing Configuration */    
+  /* Timing Configuration */
   hltdc_discovery.Init.HorizontalSync = (HDMI_Format[format].HSYNC - 1);
   hltdc_discovery.Init.AccumulatedHBP = (HDMI_Format[format].HSYNC + HDMI_Format[format].HBP - 1);
   hltdc_discovery.Init.AccumulatedActiveW = (HDMI_Format[format].HACT + HDMI_Format[format].HSYNC + HDMI_Format[format].HBP - 1);
@@ -644,7 +658,7 @@ uint8_t BSP_LCD_HDMIInitEx(uint8_t format)
   hltdc_discovery.Init.PCPolarity = LTDC_PCPOLARITY_IPC;
 
   /* Initialize & Start the LTDC */  
-  HAL_LTDC_Init(&hltdc_discovery);     
+  HAL_LTDC_Init(&hltdc_discovery);
 
 #if !defined(DATA_IN_ExtSDRAM)
   /* Initialize the SDRAM */
@@ -1310,19 +1324,16 @@ void BSP_LCD_DrawBitmap(uint32_t Xpos, uint32_t Ypos, uint8_t *pbmp)
   uint32_t InputColorMode = 0;
 
   /* Get bitmap data address offset */
-  index = *(__IO uint16_t *) (pbmp + 10);
-  index |= (*(__IO uint16_t *) (pbmp + 12)) << 16;
+  index = pbmp[10] + (pbmp[11] << 8) + (pbmp[12] << 16)  + (pbmp[13] << 24);
 
   /* Read bitmap width */
-  width = *(uint16_t *) (pbmp + 18);
-  width |= (*(uint16_t *) (pbmp + 20)) << 16;
+  width = pbmp[18] + (pbmp[19] << 8) + (pbmp[20] << 16)  + (pbmp[21] << 24);
 
   /* Read bitmap height */
-  height = *(uint16_t *) (pbmp + 22);
-  height |= (*(uint16_t *) (pbmp + 24)) << 16;
+  height = pbmp[22] + (pbmp[23] << 8) + (pbmp[24] << 16)  + (pbmp[25] << 24);
 
   /* Read bit/pixel */
-  bit_pixel = *(uint16_t *) (pbmp + 28);
+  bit_pixel = pbmp[28] + (pbmp[29] << 8);
 
   /* Set the address */
   Address = hltdc_discovery.LayerCfg[ActiveLayer].FBStartAdress + (((BSP_LCD_GetXSize()*Ypos) + Xpos)*(4));
@@ -1620,13 +1631,14 @@ static uint16_t LCD_IO_GetID(void)
 #if defined(USE_LCD_HDMI)  
   HDMI_IO_Init();
   
-  HDMI_IO_Delay(60);
+  HDMI_IO_Delay(120);
   
   if(ADV7533_ID == adv7533_drv.ReadID(ADV7533_CEC_DSI_I2C_ADDR))
   {
     return ADV7533_ID;
   }  
-  else if(HDMI_IO_Read(LCD_DSI_ADDRESS, LCD_DSI_ID_REG) == LCD_DSI_ID)
+  else if(((HDMI_IO_Read(LCD_DSI_ADDRESS, LCD_DSI_ID_REG) == LCD_DSI_ID)) || \
+           (HDMI_IO_Read(LCD_DSI_ADDRESS_A02, LCD_DSI_ID_REG) == LCD_DSI_ID))
   {
     return LCD_DSI_ID;
   }
@@ -1937,4 +1949,3 @@ static void LL_ConvertLineToARGB8888(void *pSrc, void *pDst, uint32_t xSize, uin
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
