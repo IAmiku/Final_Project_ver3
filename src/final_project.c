@@ -159,6 +159,9 @@ void LCD_Thread(void *argument){
 	BSP_LCD_DisplayOn();
 	BSP_LCD_Clear(LCD_COLOR_RED);
 
+	BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
+	char* text = "Hello World!";
+	BSP_LCD_DisplayStringAtLine(0, (uint8_t *)text);
 	while(1){
 
 	}
