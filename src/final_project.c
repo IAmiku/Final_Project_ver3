@@ -15,10 +15,13 @@ I2C_HandleTypeDef hi2c1;
 // Thread Handles
 osThreadId_t GyroThreadHandle;
 osThreadId_t UART_ThreadHandle;
+osThreadId_t LCD_ThreadHandle;
 
 const osThreadAttr_t Gyro_Thread_attributes = { .name = "Gyro", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
 const osThreadAttr_t UART_Thread_attributes = { .name = "UART", .priority =
+		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
+const osThreadAttr_t LCD_Thread_attributes = { .name = "LCD", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 500 * 4 };
 // Queue Handles
 // Event Handles
@@ -30,6 +33,7 @@ const osThreadAttr_t UART_Thread_attributes = { .name = "UART", .priority =
 // Function declarations
 void Gyro_Thread(void *argument);
 void UART_Thread(void *argument);
+void LCD_Thread(void *argument);
 
 void I2C_init();
 void UART_init();
@@ -37,18 +41,15 @@ void UART_init();
 int main(void) {
 	Sys_Init();
 
+	HAL_NVIC_SetPriority(SysTick_IRQn, 0,1);
+
 	// Initialize peripherals
-
-	volatile uint8_t status = BSP_LCD_Init();
-	BSP_LCD_SelectLayer(1);
-	BSP_LCD_DisplayOn();
-	BSP_LCD_Clear(0xFFFFFFFF);
-
+	HAL_Delay(10);
 	osKernelInitialize();
-
 	// Setup RTOS objects
 	GyroThreadHandle = osThreadNew(Gyro_Thread, NULL, &Gyro_Thread_attributes);
 	UART_ThreadHandle = osThreadNew(UART_Thread, NULL, &UART_Thread_attributes);
+	LCD_ThreadHandle = osThreadNew(LCD_Thread, NULL, &LCD_Thread_attributes );
 
 	osKernelStart();
 
@@ -140,4 +141,36 @@ void UART_Thread(void *argument) {
 	UART_init();
 	while (1) {
 	}
+}
+void LCD_Thread(void *argument){
+	volatile uint8_t status = BSP_LCD_Init();
+	BSP_LCD_SelectLayer(0);
+	BSP_LCD_Clear(LCD_COLOR_GRAY);
+	BSP_LCD_DisplayOn();
+	BSP_LCD_Clear(LCD_COLOR_RED);
+
+	while(1){}
+}
+void HAL_Delay( uint32_t ulDelayMs )
+{
+    if( xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED )
+    {
+        vTaskDelay( pdMS_TO_TICKS( ulDelayMs ) );
+    }
+    else
+    {
+        uint32_t ulStartTick = HAL_GetTick();
+        uint32_t ulTicksWaited = ulDelayMs;
+
+        /* Add a freq to guarantee minimum wait */
+        if( ulTicksWaited < HAL_MAX_DELAY )
+        {
+            ulTicksWaited += ( uint32_t ) ( HAL_GetTickFreq() );
+        }
+
+        while( ( HAL_GetTick() - ulStartTick ) < ulTicksWaited )
+        {
+            __NOP();
+        }
+    }
 }

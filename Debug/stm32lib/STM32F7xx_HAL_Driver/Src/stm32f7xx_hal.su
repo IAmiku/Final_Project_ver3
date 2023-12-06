@@ -8,7 +8,7 @@ C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:291:17:HAL_Ge
 C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:299:10:HAL_GetTickPrio	0	static
 C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:307:19:HAL_SetTickFreq	8	static
 C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:336:21:HAL_GetTickFreq	0	static
-C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:351:13:HAL_Delay	0	static
+C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:351:13:HAL_Delay	16	static
 C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:379:13:HAL_SuspendTick	0	static
 C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:394:13:HAL_ResumeTick	0	static
 C:/STM/workspace/stm32lib/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c:403:10:HAL_GetHalVersion	0	static
