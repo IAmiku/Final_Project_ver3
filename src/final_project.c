@@ -118,6 +118,10 @@ void UART_init() {
 }
 
 void Gyro_Thread(void *argument) {
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS(100);
+    xLastWakeTime = xTaskGetTickCount();
+
 	I2C_init();
 
 	volatile uint8_t init_status = MPU6050_Init(&hi2c1);
@@ -126,9 +130,7 @@ void Gyro_Thread(void *argument) {
 
 	while(1) {
 //		HAL_Delay(100);
-		osDelay(100);
-		MPU6050_Read_Accel(&hi2c1, &mpu6050);
-		MPU6050_Read_Gyro(&hi2c1, &mpu6050);
+		MPU6050_Read_All(&hi2c1, &mpu6050);
 
 		int16_t acc_x = (int16_t) mpu6050.Ax;
 		int16_t acc_y = (int16_t) mpu6050.Ay;
@@ -137,12 +139,21 @@ void Gyro_Thread(void *argument) {
 		int16_t gyro_x = (int16_t) mpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
 		int16_t gyro_y = (int16_t) mpu6050.Gy;
 		int16_t gyro_z = (int16_t) mpu6050.Gz;
+
+		int16_t ang_x = (int16_t) mpu6050.KalmanAngleX;
+		int16_t ang_y = (int16_t) mpu6050.KalmanAngleY;// NOT WORKING
+
+		int16_t temperature = (int16_t) mpu6050.Temperature;
 		sprintf(message,"\033[0m\033[44;33m\033[2J\033[;H"
 				"Accelerometer X is %d, Y is %d, Z is %d \n\r"
-				"Gyro X is %d, Y is %d, Z is %d \n\r", acc_x, acc_y, acc_z,
-				gyro_x, gyro_y, gyro_z);
+				"Gyro X is %d, Y is %d, Z is %d \n\r"
+				"Temperature: %d"
+				"KalmanX: %d"
+				"KalmanY %d", acc_x, acc_y, acc_z,
+				gyro_x, gyro_y, gyro_z, temperature, ang_x, ang_y);
 		HAL_UART_Transmit_IT(&USB_UART, message,strlen(message));
-		osDelay(100);
+		osDelay(20);
+		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 	}
 }
 

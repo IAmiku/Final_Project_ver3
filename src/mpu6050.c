@@ -33,6 +33,8 @@
 
 #include <math.h>
 #include "mpu6050.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #define RAD_TO_DEG 57.295779513082320876798154814105
 
