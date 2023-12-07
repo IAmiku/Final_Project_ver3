@@ -1,0 +1,12 @@
+
+Debug/Final_Project_ver3.bin
+Debug/Final_Project_ver3.elf
+Debug/Final_Project_ver3.list
+Debug/Final_Project_ver3.map
+Debug/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/port.cyclo
+Debug/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/port.o
+Debug/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/port.su
+Debug/src/final_project.cyclo
+Debug/src/final_project.o
+Debug/src/final_project.su
+Debug/src/mpu6050.o
