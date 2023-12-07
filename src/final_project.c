@@ -293,10 +293,10 @@ void Gyro_Thread(void *argument) {
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
 
-		/*
-		int16_t acc_x = (int16_t) mpu6050.Ax;
-		int16_t acc_y = (int16_t) mpu6050.Ay;
-		int16_t acc_z = (int16_t) mpu6050.Az;
+
+		int16_t acc_x = (int16_t) (mpu6050.Ax * 9.8);
+		int16_t acc_y = (int16_t) (mpu6050.Ay * 9.8);
+		int16_t acc_z = (int16_t) (mpu6050.Az * 9.8);
 
 		int16_t gyro_x = (int16_t) mpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
 		int16_t gyro_y = (int16_t) mpu6050.Gy;
@@ -318,9 +318,9 @@ void Gyro_Thread(void *argument) {
 
 
 		HAL_UART_Transmit_IT(&USB_UART, message,strlen(message));
-				*/
 
-		HAL_UART_Transmit_DMA(&USB_UART, &mpu6050, sizeof(MPU6050_t));
+
+		//HAL_UART_Transmit_DMA(&USB_UART, &mpu6050, sizeof(MPU6050_t));
 
 //		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
 		osDelay(10);
@@ -346,7 +346,12 @@ void LCD_Thread(void *argument){
 	char* text = "Hello World!";
 	BSP_LCD_DisplayStringAtLine(0, (uint8_t *)text);
 	while(1){
-
+		char* gyro_data[60];
+		int16_t gyro_x = (int16_t) PeerMpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
+		int16_t gyro_y = (int16_t) PeerMpu6050.Gy;
+		int16_t gyro_z = (int16_t) PeerMpu6050.Gz;
+		sprintf(gyro_data, "Gx: %d, Gy %d, Gz: %d", gyro_x, gyro_y, gyro_z);
+		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)gyro_data);
 	}
 }
 
