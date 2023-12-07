@@ -94,16 +94,20 @@ void DMA2_Stream6_IRQHandler(void) {
 void DMA2_Stream7_IRQHandler(void) {
     // Call the DMA interrupt handler for the USB TX DMA stream
     HAL_DMA_IRQHandler(&hdma_usart1_tx);
+    HAL_UART_AbortReceive(&DISCO_UART);// Cancel receving attemp
 }
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 //	HAL_UART_Receive_IT(&USB_UART, &buffer, 1);
+    HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+    osThreadFlagsSet(LCD_ThreadHandle, 0x00000001U);
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 // Dont care
 }
+
 
 void I2C_init() {
 	GPIO_InitTypeDef gpio_init;
@@ -154,7 +158,7 @@ void DMA_init() {
 	hdma_usart1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
 	hdma_usart1_tx.Init.Mode = DMA_NORMAL;
 	hdma_usart1_tx.Init.Priority = DMA_PRIORITY_LOW;
-	hdma_usart1_tx.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+	hdma_usart1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	hdma_usart1_tx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
 	hdma_usart1_tx.Init.MemBurst = DMA_MBURST_SINGLE;
 	hdma_usart1_tx.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -168,7 +172,7 @@ void DMA_init() {
 	hdma_usart1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
 	hdma_usart1_rx.Init.Mode = DMA_NORMAL;
 	hdma_usart1_rx.Init.Priority = DMA_PRIORITY_HIGH;
-	hdma_usart1_rx.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+	hdma_usart1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	hdma_usart1_rx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
 	hdma_usart1_rx.Init.MemBurst = DMA_MBURST_SINGLE;
 	hdma_usart1_rx.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -183,7 +187,7 @@ void DMA_init() {
 	hdma_usart6_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
 	hdma_usart6_tx.Init.Mode = DMA_NORMAL;
 	hdma_usart6_tx.Init.Priority = DMA_PRIORITY_LOW;
-	hdma_usart6_tx.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+	hdma_usart6_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	hdma_usart6_tx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
 	hdma_usart6_tx.Init.MemBurst = DMA_MBURST_SINGLE;
 	hdma_usart6_tx.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -197,7 +201,7 @@ void DMA_init() {
 	hdma_usart6_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
 	hdma_usart6_rx.Init.Mode = DMA_NORMAL;
 	hdma_usart6_rx.Init.Priority = DMA_PRIORITY_HIGH;
-	hdma_usart6_rx.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+	hdma_usart6_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	hdma_usart6_rx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
 	hdma_usart6_rx.Init.MemBurst = DMA_MBURST_SINGLE;
 	hdma_usart6_rx.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -317,13 +321,15 @@ void Gyro_Thread(void *argument) {
 				temperature, ang_x, ang_y);
 
 
-		HAL_UART_Transmit_IT(&USB_UART, message,strlen(message));
+
+//		HAL_UART_Transmit_IT(&USB_UART, message,strlen(message));
+		volatile HAL_StatusTypeDef status=HAL_UART_Transmit_DMA(&USB_UART, message,strlen(message));
 
 
-		//HAL_UART_Transmit_DMA(&USB_UART, &mpu6050, sizeof(MPU6050_t));
+//		HAL_UART_Transmit_DMA(&USB_UART, &mpu6050, sizeof(MPU6050_t));
 
 //		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
-		osDelay(10);
+		osDelay(100);
 	}
 }
 
