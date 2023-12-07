@@ -72,6 +72,9 @@ int main(void) {
 void USART1_IRQHandler(void) {
 	HAL_UART_IRQHandler(&USB_UART);
 }
+void USART6_IRQHandler(void) {
+	HAL_UART_IRQHandler(&DISCO_UART);
+}
 
 // UART RX
 void DMA2_Stream1_IRQHandler(void) {
@@ -94,14 +97,16 @@ void DMA2_Stream6_IRQHandler(void) {
 void DMA2_Stream7_IRQHandler(void) {
     // Call the DMA interrupt handler for the USB TX DMA stream
     HAL_DMA_IRQHandler(&hdma_usart1_tx);
-    HAL_UART_AbortReceive(&DISCO_UART);// Cancel receving attemp
 }
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 //	HAL_UART_Receive_IT(&USB_UART, &buffer, 1);
-    HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
-    osThreadFlagsSet(LCD_ThreadHandle, 0x00000001U);
+	if(huart->Instance==USART6){
+	    HAL_UART_AbortReceive(&DISCO_UART);// Cancel receving attemp
+		HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+		osThreadFlagsSet(LCD_ThreadHandle, 0x00000001U);
+	}
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
@@ -208,10 +213,14 @@ void DMA_init() {
 
 	////////////////////////////////////////ENABLE DMA INTRRUPT//////////////////////////////////////////////
 	HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);    // UART RX
+    HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 6, 0);
 	HAL_NVIC_EnableIRQ(DMA2_Stream5_IRQn);    // USB RX
-
+    HAL_NVIC_SetPriority(DMA2_Stream5_IRQn, 6, 1);
 	HAL_NVIC_EnableIRQ(DMA2_Stream6_IRQn);    // UART TX
+    HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 6, 2);
 	HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);    // USB TX
+    HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 6, 3);
+
 
 	// Init both DMA
 	HAL_DMA_Init(&hdma_usart1_rx);
@@ -252,39 +261,39 @@ void UART_init() {
 
 	HAL_UART_Init(&DISCO_UART);
     // Configure the NVIC for UART interrupts
-    HAL_NVIC_SetPriority(USART6_IRQn, 5, 1);
+    HAL_NVIC_SetPriority(USART6_IRQn, 5, 2);
 	HAL_NVIC_EnableIRQ(USART6_IRQn);
 
-	GPIO_InitTypeDef  GPIO_InitStruct;
-	// Enable GPIO Clocks
-	__GPIOA_CLK_ENABLE();
-	// Initialize TX Pin
-	GPIO_InitStruct.Pin       = GPIO_PIN_9;
-	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull      = GPIO_PULLUP;
-	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); //TX Config
-	// Initialize RX Pin
-	GPIO_InitStruct.Pin = GPIO_PIN_10;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); //RX Config
-	// Enable UART Clocking
-	__USART1_CLK_ENABLE();
-
-	// Enable GPIO Clocks
-	__GPIOC_CLK_ENABLE();
-	// Initialize TX Pin
-	GPIO_InitStruct.Pin       = GPIO_PIN_6;
-	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull      = GPIO_PULLUP;
-	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
-	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); //TX Config
-	// Initialize RX Pin
-	GPIO_InitStruct.Pin = GPIO_PIN_7;
-	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); //RX Config
-	// Enable UART Clocking
-	__USART6_CLK_ENABLE();
+//	GPIO_InitTypeDef  GPIO_InitStruct;
+//	// Enable GPIO Clocks
+//	__GPIOA_CLK_ENABLE();
+//	// Initialize TX Pin
+//	GPIO_InitStruct.Pin       = GPIO_PIN_9;
+//	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+//	GPIO_InitStruct.Pull      = GPIO_PULLUP;
+//	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+//	GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+//	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); //TX Config
+//	// Initialize RX Pin
+//	GPIO_InitStruct.Pin = GPIO_PIN_10;
+//	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); //RX Config
+//	// Enable UART Clocking
+//	__USART1_CLK_ENABLE();
+//
+//	// Enable GPIO Clocks
+//	__GPIOC_CLK_ENABLE();
+//	// Initialize TX Pin
+//	GPIO_InitStruct.Pin       = GPIO_PIN_6;
+//	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+//	GPIO_InitStruct.Pull      = GPIO_PULLUP;
+//	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+//	GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
+//	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); //TX Config
+//	// Initialize RX Pin
+//	GPIO_InitStruct.Pin = GPIO_PIN_7;
+//	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); //RX Config
+//	// Enable UART Clocking
+//	__USART6_CLK_ENABLE();
 }
 
 void Gyro_Thread(void *argument) {
@@ -297,36 +306,34 @@ void Gyro_Thread(void *argument) {
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
 
-
-		int16_t acc_x = (int16_t) (mpu6050.Ax * 9.8);
-		int16_t acc_y = (int16_t) (mpu6050.Ay * 9.8);
-		int16_t acc_z = (int16_t) (mpu6050.Az * 9.8);
-
-		int16_t gyro_x = (int16_t) mpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
-		int16_t gyro_y = (int16_t) mpu6050.Gy;
-		int16_t gyro_z = (int16_t) mpu6050.Gz;
-
-		int16_t ang_x = (int16_t) mpu6050.KalmanAngleX;
-		int16_t ang_y = (int16_t) mpu6050.KalmanAngleY;// NOT WORKING
-
-		int16_t temperature = (int16_t) mpu6050.Temperature;
-
-		sprintf(message,"\033[0m\033[44;33m\033[2J\033[;H"
-				"Accelerometer X is %d, Y is %d, Z is %d \n\r"
-				"Gyro X is %d, Y is %d, Z is %d \n\r"
-				"Temperature: %d\n\r"
-				"KalmanX: %d  KalmanY %d",
-				acc_x, acc_y, acc_z,
-				gyro_x, gyro_y, gyro_z,
-				temperature, ang_x, ang_y);
-
-
-
-//		HAL_UART_Transmit_IT(&USB_UART, message,strlen(message));
-		volatile HAL_StatusTypeDef status=HAL_UART_Transmit_DMA(&USB_UART, message,strlen(message));
+//
+//		int16_t acc_x = (int16_t) mpu6050.Ax;
+//		int16_t acc_y = (int16_t) mpu6050.Ay;
+//		int16_t acc_z = (int16_t) mpu6050.Az;
+//
+//		int16_t gyro_x = (int16_t) mpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
+//		int16_t gyro_y = (int16_t) mpu6050.Gy;
+//		int16_t gyro_z = (int16_t) mpu6050.Gz;
+//
+//		int16_t ang_x = (int16_t) mpu6050.KalmanAngleX;
+//		int16_t ang_y = (int16_t) mpu6050.KalmanAngleY;// NOT WORKING
+//
+//		int16_t temperature = (int16_t) mpu6050.Temperature;
+//
+//		sprintf(message,"\033[0m\033[44;33m\033[2J\033[;H"
+//				"Accelerometer X is %d, Y is %d, Z is %d \n\r"
+//				"Gyro X is %d, Y is %d, Z is %d \n\r"
+//				"Temperature: %d\n\r"
+//				"KalmanX: %d  KalmanY %d",
+//				acc_x, acc_y, acc_z,
+//				gyro_x, gyro_y, gyro_z,
+//				temperature, ang_x, ang_y);
 
 
-//		HAL_UART_Transmit_DMA(&USB_UART, &mpu6050, sizeof(MPU6050_t));
+//		HAL_UART_Transmit_IT(&DISCO_UART, message,strlen(message));
+
+	    HAL_UART_AbortTransmit(&DISCO_UART);// Cancel receving attemp
+		HAL_UART_Transmit_DMA(&DISCO_UART, &mpu6050, sizeof(MPU6050_t));
 
 //		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
 		osDelay(100);
@@ -336,7 +343,6 @@ void Gyro_Thread(void *argument) {
 void UART_Thread(void *argument) {
 	DMA_init();
 	UART_init();
-
 	while (1) {
 
 	}
@@ -351,7 +357,10 @@ void LCD_Thread(void *argument){
 	BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
 	char* text = "Hello World!";
 	BSP_LCD_DisplayStringAtLine(0, (uint8_t *)text);
+    HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+
 	while(1){
+		osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever); // Wait forever until thread flag 1 is set.
 		char* gyro_data[60];
 		int16_t gyro_x = (int16_t) PeerMpu6050.Gx; //Kalman_getAngle(&kalman, mpu6050.Gx, mpu6050.Ax, );
 		int16_t gyro_y = (int16_t) PeerMpu6050.Gy;
