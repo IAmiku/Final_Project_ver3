@@ -355,7 +355,7 @@ void LCD_Thread(void *argument){
 	BSP_LCD_Clear(LCD_COLOR_RED);
 
 	BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
-	char* text = "Hello World!";
+	char text[60] = "G X | G Y | G Z | A X | A Y | A Z";
 	BSP_LCD_DisplayStringAtLine(0, (uint8_t *)text);
     HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
 
@@ -365,16 +365,18 @@ void LCD_Thread(void *argument){
 		int16_t gyro_x = (int16_t) PeerMpu6050.Gx;
 		int16_t gyro_y = (int16_t) PeerMpu6050.Gy;
 		int16_t gyro_z = (int16_t) PeerMpu6050.Gz;
-		sprintf(gyro_data, "Gx: %d, Gy %d, Gz: %d", gyro_x, gyro_y, gyro_z);
-		BSP_LCD_ClearStringLine(1);
-		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)gyro_data);
+//		sprintf(gyro_data, "Gx: %d, Gy %d, Gz: %d", gyro_x, gyro_y, gyro_z);
+//		BSP_LCD_ClearStringLine(1);
+//		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)gyro_data);
 		char* accel_data[60];
 		int16_t accel_x = (int16_t) PeerMpu6050.Ax * 9.8;
 		int16_t accel_y = (int16_t) PeerMpu6050.Ay * 9.8;
 		int16_t accel_z = (int16_t) PeerMpu6050.Az * 9.8;
-		sprintf(accel_data, "Accel x: %d, Accel y %d, Accel z: %d", accel_x, accel_y, accel_z);
-		BSP_LCD_ClearStringLine(2);
-		BSP_LCD_DisplayStringAtLine(2, (uint8_t *)accel_data);
+//		sprintf(accel_data, "Accel x: %d, Accel y %d, Accel z: %d", accel_x, accel_y, accel_z);
+		char mpu_data[60];
+		sprintf(mpu_data, "%d  %d  %d  %d  %d  %d", gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
+		BSP_LCD_ClearStringLine(1);
+		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)mpu_data);
 	}
 }
 
