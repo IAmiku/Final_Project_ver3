@@ -86,7 +86,7 @@ main-build: Final_Project_ver3.elf secondary-outputs
 
 # Tool invocations
 Final_Project_ver3.elf Final_Project_ver3.map: $(OBJS) $(USER_OBJS) C:\STM\workspace\Final_Project_ver3\LinkerScript.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Final_Project_ver3.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\STM\workspace\Final_Project_ver3\LinkerScript.ld" --specs=nosys.specs -Wl,-Map="Final_Project_ver3.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "Final_Project_ver3.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\STM\workspace\Final_Project_ver3\LinkerScript.ld" --specs=nosys.specs -Wl,-Map="Final_Project_ver3.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

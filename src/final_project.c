@@ -2,15 +2,21 @@
 
 #include "init.h"
 #include "mpu6050.h"
-#include "math.h"
+#include <math.h>
 
 #include "../Libraries/BSP/STM32F769I-Discovery/stm32f769i_discovery_lcd.h"
 // Defines
+
+#define SQUARE_SIZE 100
+#define PI 3.14159265358979323846
 
 
 // Global Variables
 MPU6050_t mpu6050;
 MPU6050_t PeerMpu6050;
+static float accumulatedAngleX = 0.0f;
+static float accumulatedAngleY = 0.0f;
+static float accumulatedAngleZ = 0.0f;
 
 
 // HAL Handles
@@ -24,17 +30,21 @@ DMA_HandleTypeDef hdma_usart1_rx;
 // Thread Handles
 osThreadId_t GyroThreadHandle;
 osThreadId_t UART_ThreadHandle;
-osThreadId_t LCD_ThreadHandle;
+osThreadId_t LCDBuffer_ThreadHandle;
+osThreadId_t LCDRefresh_ThreadHandle;
 osThreadId_t PushButton_ThreadHandle;
+
 
 const osThreadAttr_t Gyro_Thread_attributes = { .name = "Gyro", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
 const osThreadAttr_t UART_Thread_attributes = { .name = "UART", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
-const osThreadAttr_t LCD_Thread_attributes = { .name = "LCD", .priority =
-		(osPriority_t) osPriorityNormal, .stack_size = 500 * 4 };
 const osThreadAttr_t PushButton_Thread_attributes = { .name = "PushButton", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
+const osThreadAttr_t LCDBuffer_Thread_attributes = { .name = "LCD_Buffer", .priority =
+		(osPriority_t) osPriorityNormal, .stack_size = 1000 * 4 };
+const osThreadAttr_t LCDRefresh_Thread_attributes = { .name = "LCD_Update", .priority =
+		(osPriority_t) osPriorityNormal, .stack_size = 250 * 4 };
 // Queue Handles
 osMessageQueueId_t uartQueueHandle;
 const osMessageQueueAttr_t uartQueue_attributes = { .name = "mpu6050Queue" };
@@ -42,7 +52,13 @@ const osMessageQueueAttr_t uartQueue_attributes = { .name = "mpu6050Queue" };
 osEventFlagsId_t pushButtonFlag;
 const osEventFlagsAttr_t pushButton_Event_attributes = { .name = "PushButton",
 		.attr_bits = 0, .cb_mem = NULL, .cb_size = 128 * 4 };
+osSemaphoreId_t mpuDataSemaphore;
+
 // Mutex Handles
+osMutexId_t frameBufferMutex; // Mutex to protect the frame buffer
+const osMutexAttr_t frameBufferMutex_attributes = {
+  .name = "frameBufferMutex"
+};
 // Timer Handles
 
 // Variables
@@ -50,8 +66,9 @@ const osEventFlagsAttr_t pushButton_Event_attributes = { .name = "PushButton",
 // Function declarations
 void Gyro_Thread(void *argument);
 void UART_Thread(void *argument);
-void LCD_Thread(void *argument);
 void PushButton_Thread(void *argument);
+void LCDBuffer_Thread(void *argument);
+void LCDRefresh_Thread(void *argument);
 
 void I2C_init();
 void UART_init();
@@ -68,11 +85,19 @@ int main(void) {
 	UART_ThreadHandle = osThreadNew(UART_Thread, NULL, &UART_Thread_attributes);
 	uartQueueHandle = osMessageQueueNew(1, sizeof(MPU6050_t),
 			&uartQueue_attributes); // unused
-	LCD_ThreadHandle = osThreadNew(LCD_Thread, NULL, &LCD_Thread_attributes);
+	const osSemaphoreAttr_t mpuDataSemaphore_attributes = {
+	    .name = "mpuDataSemaphore"
+	};
+//	mpuDataSemaphore = osSemaphoreNew(1, 0, &mpuDataSemaphore_attributes);
+
+	//display
+    frameBufferMutex = osMutexNew(&frameBufferMutex_attributes);
+    LCDRefresh_ThreadHandle=osThreadNew(LCDRefresh_Thread, NULL, &LCDRefresh_Thread_attributes);
+
+    LCDBuffer_ThreadHandle=osThreadNew(LCDBuffer_Thread, NULL, &LCDBuffer_Thread_attributes);
 	PushButton_ThreadHandle = osThreadNew(PushButton_Thread, NULL, &PushButton_Thread_attributes);
 
-	pushButtonFlag = osEventFlagsNew(NULL);
-	osKernelStart();
+	pushButtonFlag = osEventFlagsNew(NULL);	osKernelStart();
 
 	while (1) {
 		// We should never get here
@@ -112,10 +137,11 @@ void DMA2_Stream7_IRQHandler(void) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 //	HAL_UART_Receive_IT(&USB_UART, &buffer, 1);
+	1;
 	if(huart->Instance==USART6){
 	    HAL_UART_AbortReceive(&DISCO_UART);// Cancel receving attemp
 		HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
-		osThreadFlagsSet(LCD_ThreadHandle, 0x00000001U);
+		osThreadFlagsSet(LCDBuffer_ThreadHandle, 0x00000001U);
 	}
 }
 
@@ -282,7 +308,7 @@ void Gyro_Thread(void *argument) {
 	uint8_t message [100];
 //    TickType_t xLastWakeTime;
 //    const TickType_t xFrequency = pdMS_TO_TICKS(1000);
-	osDelay(1000);
+	osDelay(100);
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
 
@@ -321,7 +347,7 @@ void Gyro_Thread(void *argument) {
 		}
 
 //		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
-		osDelay(50);
+		osDelay(100);
 	}
 }
 
@@ -329,96 +355,234 @@ void UART_Thread(void *argument) {
 	DMA_init();
 	UART_init();
 	while (1) {
-
+		osDelay(100);
 	}
 }
-void LCD_Thread(void *argument){
+
+void LCDBuffer_Thread(void *argument){
+	osDelay(100);
+    uint32_t frameBufferWidth = BSP_LCD_GetXSize();
+    uint32_t frameBufferHeight = BSP_LCD_GetYSize();
+	HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+
+    while(1) {
+      osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever); // Wait for new MPU6050 data
+
+      osMutexAcquire(frameBufferMutex, osWaitForever);
+
+        // Clear the buffer
+//        memset((void*)LCD_FB_START_ADDRESS, 0, FRAME_BUFFER_SIZE);
+
+        // Display MPU6050 data as text
+      	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
+
+        DrawStringToBuffer(text, 0, 0, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+
+        static char mpu_data[60];
+        DrawStringToBuffer(mpu_data, 0, 24, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+//        sprintf(mpu_data, "%6d %6d %6d %6d %6d %6d", gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
+        sprintf(mpu_data, "%6.2f %6.2f %6.2f %6.2f %6.2f %6.2f",
+                (float)PeerMpu6050.Gx, (float)PeerMpu6050.Gy, (float)PeerMpu6050.Gz,
+                (float)PeerMpu6050.Ax, (float)PeerMpu6050.Ay, (float)PeerMpu6050.Az);
+        DrawStringToBuffer(mpu_data, 0, 24, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+
+//
+        // Read MPU6050 data for 3D rotation
+        float gyroX = PeerMpu6050.Gx; // Roll (degrees per millisecond)
+        float gyroY = PeerMpu6050.Gy; // Pitch
+        float gyroZ = PeerMpu6050.Gz; // Yaw
+        static float vertices[4][3];
+
+        static char points[60];
+        static char accumulated[60];
+        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+        DrawStringToBuffer(accumulated, 0, 24 * 15, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+
+
+        // Update accumulated angles
+        float deltaT = 1;
+        // Update and normalize the accumulated angles
+        accumulatedAngleX += (float)PeerMpu6050.Gx * deltaT;
+        normalizeAngle(&accumulatedAngleX);
+
+        accumulatedAngleY += (float)PeerMpu6050.Gy * deltaT;
+        normalizeAngle(&accumulatedAngleY);
+
+        accumulatedAngleZ += (float)PeerMpu6050.Gz * deltaT;
+        normalizeAngle(&accumulatedAngleZ);
+
+
+        // Initialize 3D vertices of the square
+        static int verticesInitialized = 0;
+            vertices[0][0] = -SQUARE_SIZE / 2; vertices[0][1] = -SQUARE_SIZE / 2; vertices[0][2] = 0;
+            vertices[1][0] = SQUARE_SIZE / 2;  vertices[1][1] = -SQUARE_SIZE / 2; vertices[1][2] = 0;
+            vertices[2][0] = SQUARE_SIZE / 2;  vertices[2][1] = SQUARE_SIZE / 2;  vertices[2][2] = 0;
+            vertices[3][0] = -SQUARE_SIZE / 2; vertices[3][1] = SQUARE_SIZE / 2;  vertices[3][2] = 0;
+
+
+        // Apply 3D rotations based on accumulated angles
+        for (int i = 0; i < 4; i++) {
+            rotateX(&vertices[i][1], &vertices[i][2], accumulatedAngleX);
+            rotateY(&vertices[i][0], &vertices[i][2], accumulatedAngleY);
+            rotateZ(&vertices[i][0], &vertices[i][1], accumulatedAngleZ);
+        }
+
+        // Project 3D points to 2D and draw
+        uint32_t centerX = BSP_LCD_GetXSize() / 2;
+        uint32_t centerY = BSP_LCD_GetYSize() / 2;
+        for (int i = 0; i < 4; i++) {
+            vertices[i][0] += centerX;
+            vertices[i][1] += centerY;
+        }
+
+        // Draw the transformed square
+        for (int i = 0; i < 4; i++) {
+            int next = (i + 1) % 4;
+            DrawLineInBuffer((uint16_t)vertices[i][0], (uint16_t)vertices[i][1],
+                             (uint16_t)vertices[next][0], (uint16_t)vertices[next][1],
+                             0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+        }
+        sprintf(points, "V1: (%6.2f, %6.2f) V2: (%6.2f, %6.2f)      V3: (%6.2f, %6.2f) V4: (%4.2f, %6.2f)",
+                vertices[0][0] - centerX, vertices[0][1] - centerY,
+                vertices[1][0] - centerX, vertices[1][1] - centerY,
+                vertices[2][0] - centerX, vertices[2][1] - centerY,
+                vertices[3][0] - centerX, vertices[3][1] - centerY);
+        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+        sprintf(accumulated, "Accum X: %.2f Y: %.2f Z: %.2f", accumulatedAngleX, accumulatedAngleY, accumulatedAngleZ);
+        DrawStringToBuffer(accumulated, 0, 24*15, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+
+//        DrawRotatingCube(&PeerMpu6050, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize(), BSP_LCD_GetYSize());
+
+        osMutexRelease(frameBufferMutex);
+    }
+}
+
+void LCDRefresh_Thread(void *argument) {
 	BSP_LCD_Init();
 	BSP_LCD_LayerDefaultInit(0,LCD_FB_START_ADDRESS);
 	BSP_LCD_SelectLayer(0);
 	BSP_LCD_DisplayOn();
 	BSP_LCD_Clear(LCD_COLOR_WHITE);
 
-	BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
-	char text[60] = "G X | G Y | G Z | A X | A Y | A Z";
-	BSP_LCD_DisplayStringAtLine(0, (uint8_t *)text);
-	char angle_text[60] = "X | Y | Z";
-	BSP_LCD_DisplayStringAtLine(2, (uint8_t *) angle_text);
-    HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+	uint32_t color = 0xFFFF00FF;
+	uint32_t frameBufferWidth = BSP_LCD_GetXSize();
+	uint32_t frameBufferHeight = BSP_LCD_GetYSize();
 
-    uint8_t is_first_reading = 1;
-    double gyroScale = 131;
-
-	while(1){
-		osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever); // Wait forever until thread flag 1 is set.
-		uint16_t ax, ay, az, gx, gy, gz, rx, ry, rz;
-		ax = PeerMpu6050.Accel_X_RAW;
-		ay = PeerMpu6050.Accel_Y_RAW;
-	    az = PeerMpu6050.Accel_Z_RAW;
-	    gx = PeerMpu6050.Gyro_X_RAW;
-	    gy = PeerMpu6050.Gyro_Y_RAW;
-	    gz = PeerMpu6050.Gyro_Z_RAW;
-	    double arx, ary, arz, grx, gry, grz, gsx, gsy, gsz, timeStep;
-	    timeStep = .001; // 1kHZ so 1ms timestep
-
-	    gsx = gx/gyroScale;   gsy = gy/gyroScale;   gsz = gz/gyroScale;
-		  // calculate accelerometer angles
-		arx = (180/3.141592) * atan(ax / sqrt(pow(ay, 2) + pow(az, 2)));
-		ary = (180/3.141592) * atan(ay / sqrt(pow(ax, 2) + pow(az, 2)));
-		arz = (180/3.141592) * atan(sqrt(pow(ay, 2) + pow(ax, 2)) / az);
-
-		  // set initial values equal to accel values
-		  if (is_first_reading == 1) {
-		    grx = arx;
-		    gry = ary;
-		    grz = arz;
-		    is_first_reading = 0;
-		  }
-		  // integrate to find the gyro angle
-		  else{
-		    grx = grx + (timeStep * gsx);
-		    gry = gry + (timeStep * gsy);
-		    grz = grz + (timeStep * gsz);
-		  }
-
-		  // apply filter
-		  rx = (uint16_t)((0.96 * arx) + (0.04 * grx));
-		  ry = (uint16_t)((0.96 * ary) + (0.04 * gry));
-		  rz = (uint16_t)((0.96 * arz) + (0.04 * grz));
-
-
-		char* gyro_data[60];
-		int16_t gyro_x = (int16_t) PeerMpu6050.Gx;
-		int16_t gyro_y = (int16_t) PeerMpu6050.Gy;
-		int16_t gyro_z = (int16_t) PeerMpu6050.Gz;
-
-//		sprintf(gyro_data, "Gx: %d, Gy %d, Gz: %d", gyro_x, gyro_y, gyro_z);
-//		BSP_LCD_ClearStringLine(1);
-//		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)gyro_data);
-		char* accel_data[60];
-		int16_t accel_x = (int16_t) PeerMpu6050.Ax * 9.8;
-		int16_t accel_y = (int16_t) PeerMpu6050.Ay * 9.8;
-		int16_t accel_z = (int16_t) PeerMpu6050.Az * 9.8;
-
-
-
-		if(osEventFlagsGet(pushButtonFlag) == 0x00000001U) {
-			osEventFlagsClear(pushButtonFlag, 0x1);
-			BSP_LCD_ClearStringLine(1);
-			BSP_LCD_ClearStringLine(3);
-		} else {
-//		sprintf(accel_data, "Accel x: %d, Accel y %d, Accel z: %d", accel_x, accel_y, accel_z);
-			char mpu_data[60];
-			sprintf(mpu_data, "%d    %d    %d     %d     %d     %d", gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
-			BSP_LCD_ClearStringLine(1);
-			BSP_LCD_DisplayStringAtLine(1, (uint8_t *)mpu_data);
-
-			char angles[60];
-			sprintf(angles, "%d  %d  %d", rx, ry, rz);
-			BSP_LCD_ClearStringLine(3);
-			BSP_LCD_DisplayStringAtLine(3, (uint8_t *)angles);
-		}
+	for (uint32_t y = 0; y < frameBufferHeight; y++) {
+	    for (uint32_t x = 0; x < frameBufferWidth; x++) {
+	    	((uint32_t*)LCD_FB_START_ADDRESS)[y * frameBufferWidth + x] = color;
+	    }
 	}
+
+    while (1) {
+    	osMutexAcquire(frameBufferMutex, osWaitForever);
+
+//    	BSP_LCD_DrawBitmap(0, 0, (uint8_t *)LCD_FB_START_ADDRESS);
+
+
+//    	BSP_LCD_DrawCircle(1,1,1);
+		osMutexRelease(frameBufferMutex);
+		osDelay(1000); // 25Hz
+
+    }
+
+}
+
+void DrawStringToBuffer(char* str, uint16_t x, uint16_t y, uint32_t textColor, uint32_t* buffer, uint32_t bufferWidth) {
+    sFONT *pFont = BSP_LCD_GetFont(); // Get the current font
+    uint16_t charWidth = pFont->Width;
+    uint16_t charHeight = pFont->Height;
+
+    while (*str) {
+        if (*str < ' ' || *str > '~') {
+            str++;
+            continue; // Skip non-printable characters
+        }
+
+        uint8_t *charBitmap = &pFont->table[(*str - ' ') * charHeight * ((charWidth + 7) / 8)];
+        DrawCharToBuffer(x, y, charBitmap, charWidth, charHeight, textColor,  buffer, bufferWidth);
+
+        x += charWidth; // Move to the next character position
+        if (x + charWidth > bufferWidth) {
+            x = 0; // Reset x to start of next line
+            y += charHeight;
+        }
+        str++;
+    }
+}
+
+void DrawCharToBuffer(uint16_t x, uint16_t y, uint8_t* charBitmap,
+						uint16_t charWidth, uint16_t charHeight,
+						uint32_t textColor,  uint32_t* buffer, uint32_t bufferWidth) {
+    for (uint16_t i = 0; i < charHeight; i++) {
+        for (uint16_t j = 0; j < charWidth; j++) {
+            uint16_t bit = (charBitmap[i * ((charWidth + 7) / 8) + j / 8] >> (7 - j % 8)) & 0x1;
+            if(!bit)continue;
+            uint32_t color = textColor;
+            uint32_t *pixel = buffer + (y + i) * bufferWidth + (x + j);
+            if ((x + j) < bufferWidth) {
+                *pixel = color;
+            }
+        }
+    }
+}
+// Convert degrees to radians
+float toRadians(float degrees) {
+    return degrees * (PI / 180.0);
+}
+
+// Rotate a point around the origin
+void rotatePoint(float* x, float* y, float angle) {
+    float rad = toRadians(angle);
+    float cosAngle = cos(rad);
+    float sinAngle = sin(rad);
+
+    float tx = *x;
+    float ty = *y;
+
+    *x = cosAngle * tx - sinAngle * ty;
+    *y = sinAngle * tx + cosAngle * ty;
+}
+void DrawLineInBuffer(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint32_t color, uint32_t* buffer, uint32_t bufferWidth) {
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy, e2;
+
+    while (1) {
+        if (x0 >= 0 && x0 < bufferWidth && y0 >= 0 && y0 < bufferWidth) {
+            buffer[y0 * bufferWidth + x0] = color;
+        }
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+// 3D rotation functions
+void rotateX(float* y, float* z, float angleX) {
+    float rad = toRadians(angleX);
+    float temp = *y;
+    *y = cos(rad) * (*y) - sin(rad) * (*z);
+    *z = sin(rad) * temp + cos(rad) * (*z);
+}
+
+void rotateY(float* x, float* z, float angleY) {
+    float rad = toRadians(angleY);
+    float temp = *x;
+    *x = cos(rad) * (*x) + sin(rad) * (*z);
+    *z = -sin(rad) * temp + cos(rad) * (*z);
+}
+
+void rotateZ(float* x, float* y, float angleZ) {
+    float rad = toRadians(angleZ);
+    float temp = *x;
+    *x = cos(rad) * (*x) - sin(rad) * (*y);
+    *y = sin(rad) * temp + cos(rad) * (*y);
+}
+// Normalize angles to the range [0, 360]
+void normalizeAngle(float* angle) {
+    while (*angle >= 360.0f) *angle -= 360.0f;
+    while (*angle < 0.0f) *angle += 360.0f;
 }
 
 
@@ -427,6 +591,9 @@ void PushButton_Thread(void *argument) {
 	GPIO_InitTypeDef GPIO_InitStruct = { .Pin = GPIO_PIN_0, .Mode =
 			GPIO_MODE_IT_RISING_FALLING, .Pull = GPIO_NOPULL };
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	while(1){
+		osDelay(10000);
+	}
 }
 
 void EXTI0_IRQHandler(void) {
@@ -434,7 +601,6 @@ void EXTI0_IRQHandler(void) {
 	// Set flag here [EVENT]
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);  // Clear the interrupt flag
 	osEventFlagsSet(pushButtonFlag, 0x00000001U);
-
 }
 
 void HAL_Delay( uint32_t ulDelayMs )
