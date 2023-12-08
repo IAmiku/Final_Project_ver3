@@ -17,6 +17,12 @@ MPU6050_t PeerMpu6050;
 static float accumulatedAngleX = 0.0f;
 static float accumulatedAngleY = 0.0f;
 static float accumulatedAngleZ = 0.0f;
+static const float initialVertices[4][3] = {
+    {-SQUARE_SIZE / 2, -SQUARE_SIZE / 2, 0},
+    {SQUARE_SIZE / 2, -SQUARE_SIZE / 2, 0},
+    {SQUARE_SIZE / 2, SQUARE_SIZE / 2, 0},
+    {-SQUARE_SIZE / 2, SQUARE_SIZE / 2, 0}
+};
 
 
 // HAL Handles
@@ -391,12 +397,23 @@ void LCDBuffer_Thread(void *argument){
         float gyroX = PeerMpu6050.Gx; // Roll (degrees per millisecond)
         float gyroY = PeerMpu6050.Gy; // Pitch
         float gyroZ = PeerMpu6050.Gz; // Yaw
-        static float vertices[4][3];
+
+        // Copy initial vertices and apply accumulated rotations
+        static float transformedVertices[4][3];
+
 
         static char points[60];
         static char accumulated[60];
         DrawStringToBuffer(points, 0, 24 * 5, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         DrawStringToBuffer(accumulated, 0, 24 * 15, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+		// erase sq
+		for (int i = 0; i < 4; i++) {
+			int next = (i + 1) % 4;
+			DrawLineInBuffer((uint16_t)transformedVertices[i][0], (uint16_t)transformedVertices[i][1],
+							 (uint16_t)transformedVertices[next][0], (uint16_t)transformedVertices[next][1],
+							 0xFFFF00FF, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+		}
+        memcpy(transformedVertices, initialVertices, sizeof(initialVertices));
 
 
         // Update accumulated angles
@@ -409,50 +426,37 @@ void LCDBuffer_Thread(void *argument){
         accumulatedAngleZ += (float)PeerMpu6050.Gz * deltaT;
         normalizeAngle(&accumulatedAngleZ);
 
-
-        // Initialize 3D vertices of the square
-        static int verticesInitialized = 0;
-            vertices[0][0] = -SQUARE_SIZE / 2; vertices[0][1] = -SQUARE_SIZE / 2; vertices[0][2] = 0;
-            vertices[1][0] = SQUARE_SIZE / 2;  vertices[1][1] = -SQUARE_SIZE / 2; vertices[1][2] = 0;
-            vertices[2][0] = SQUARE_SIZE / 2;  vertices[2][1] = SQUARE_SIZE / 2;  vertices[2][2] = 0;
-            vertices[3][0] = -SQUARE_SIZE / 2; vertices[3][1] = SQUARE_SIZE / 2;  vertices[3][2] = 0;
-
-
-            // Draw the transformed square
-            for (int i = 0; i < 4; i++) {
-                int next = (i + 1) % 4;
-                DrawLineInBuffer((uint16_t)vertices[i][0], (uint16_t)vertices[i][1],
-                                 (uint16_t)vertices[next][0], (uint16_t)vertices[next][1],
-                                 0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
-            }
-
-        // Apply 3D rotations based on accumulated angles
         for (int i = 0; i < 4; i++) {
-            rotateX(&vertices[i][1], &vertices[i][2], accumulatedAngleX);
-            rotateY(&vertices[i][0], &vertices[i][2], accumulatedAngleY);
-            rotateZ(&vertices[i][0], &vertices[i][1], accumulatedAngleZ);
+        	//TODO: FIX
+            rotateX(&transformedVertices[i][1], &transformedVertices[i][2], accumulatedAngleX);
+            rotateY(&transformedVertices[i][0], &transformedVertices[i][2], accumulatedAngleY);
+            rotateZ(&transformedVertices[i][0], &transformedVertices[i][1], accumulatedAngleZ);
         }
 
         // Project 3D points to 2D and draw
         uint32_t centerX = BSP_LCD_GetXSize() / 2;
         uint32_t centerY = BSP_LCD_GetYSize() / 2;
         for (int i = 0; i < 4; i++) {
-            vertices[i][0] += centerX;
-            vertices[i][1] += centerY;
+            transformedVertices[i][0] += centerX;
+            transformedVertices[i][1] += centerY;
         }
 
-        // Draw the transformed square
-        for (int i = 0; i < 4; i++) {
-            int next = (i + 1) % 4;
-            DrawLineInBuffer((uint16_t)vertices[i][0], (uint16_t)vertices[i][1],
-                             (uint16_t)vertices[next][0], (uint16_t)vertices[next][1],
-                             0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
-        }
+		// Draw the transformed square
+		for (int i = 0; i < 4; i++) {
+			int next = (i + 1) % 4;
+			DrawLineInBuffer((uint16_t)transformedVertices[i][0], (uint16_t)transformedVertices[i][1],
+							 (uint16_t)transformedVertices[next][0], (uint16_t)transformedVertices[next][1],
+							 0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+		}
+
+
+
+
         sprintf(points, "V1: (%6.2f, %6.2f) V2: (%6.2f, %6.2f)      V3: (%6.2f, %6.2f) V4: (%6.2f, %6.2f)",
-                vertices[0][0] - centerX, vertices[0][1] - centerY,
-                vertices[1][0] - centerX, vertices[1][1] - centerY,
-                vertices[2][0] - centerX, vertices[2][1] - centerY,
-                vertices[3][0] - centerX, vertices[3][1] - centerY);
+        		transformedVertices[0][0] - centerX, transformedVertices[0][1] - centerY,
+				transformedVertices[1][0] - centerX, transformedVertices[1][1] - centerY,
+				transformedVertices[2][0] - centerX, transformedVertices[2][1] - centerY,
+				transformedVertices[3][0] - centerX, transformedVertices[3][1] - centerY);
         DrawStringToBuffer(points, 0, 24 * 5, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         sprintf(accumulated, "Accum X: %.2f Y: %.2f Z: %.2f", accumulatedAngleX, accumulatedAngleY, accumulatedAngleZ);
         DrawStringToBuffer(accumulated, 0, 24*15, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
