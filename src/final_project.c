@@ -262,7 +262,7 @@ void UART_init() {
     HAL_NVIC_EnableIRQ(USART1_IRQn);
 
 	DISCO_UART_ptr->Instance = USART6;
-	DISCO_UART_ptr->Init.BaudRate = 38400;
+	DISCO_UART_ptr->Init.BaudRate = 500000;
 	DISCO_UART_ptr->Init.WordLength = UART_WORDLENGTH_8B;
 	DISCO_UART_ptr->Init.StopBits = UART_STOPBITS_1;
 	DISCO_UART_ptr->Init.Parity = UART_PARITY_NONE;
@@ -273,37 +273,7 @@ void UART_init() {
     // Configure the NVIC for UART interrupts
     HAL_NVIC_SetPriority(USART6_IRQn, 5, 2);
 	HAL_NVIC_EnableIRQ(USART6_IRQn);
-
-//	GPIO_InitTypeDef  GPIO_InitStruct;
-//	// Enable GPIO Clocks
-//	__GPIOA_CLK_ENABLE();
-//	// Initialize TX Pin
-//	GPIO_InitStruct.Pin       = GPIO_PIN_9;
-//	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-//	GPIO_InitStruct.Pull      = GPIO_PULLUP;
-//	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
-//	GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-//	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); //TX Config
-//	// Initialize RX Pin
-//	GPIO_InitStruct.Pin = GPIO_PIN_10;
-//	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); //RX Config
-//	// Enable UART Clocking
-//	__USART1_CLK_ENABLE();
-//
-//	// Enable GPIO Clocks
-//	__GPIOC_CLK_ENABLE();
-//	// Initialize TX Pin
-//	GPIO_InitStruct.Pin       = GPIO_PIN_6;
-//	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-//	GPIO_InitStruct.Pull      = GPIO_PULLUP;
-//	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
-//	GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
-//	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); //TX Config
-//	// Initialize RX Pin
-//	GPIO_InitStruct.Pin = GPIO_PIN_7;
-//	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); //RX Config
-//	// Enable UART Clocking
-//	__USART6_CLK_ENABLE();
+	//GPIO INIT IN UART
 }
 
 void Gyro_Thread(void *argument) {
@@ -351,7 +321,7 @@ void Gyro_Thread(void *argument) {
 		}
 
 //		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
-		osDelay(100);
+		osDelay(50);
 	}
 }
 
