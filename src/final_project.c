@@ -366,7 +366,7 @@ void UART_Thread(void *argument) {
 }
 
 void LCDBuffer_Thread(void *argument){
-	osDelay(100);
+	osDelay(1000);
     uint32_t frameBufferWidth = BSP_LCD_GetXSize();
     uint32_t frameBufferHeight = BSP_LCD_GetYSize();
 	HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
@@ -379,14 +379,10 @@ void LCDBuffer_Thread(void *argument){
         // Clear the buffer
 //        memset((void*)LCD_FB_START_ADDRESS, 0, FRAME_BUFFER_SIZE);
 
-        // Display MPU6050 data as text
-      	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
-
-        DrawStringToBuffer(text, 0, 0, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
-
+    	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
+    	DrawStringToBuffer(text, 0, 0, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         static char mpu_data[60];
         DrawStringToBuffer(mpu_data, 0, 24, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
-//        sprintf(mpu_data, "%6d %6d %6d %6d %6d %6d", gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
         sprintf(mpu_data, "%6.2f %6.2f %6.2f %6.2f %6.2f %6.2f",
                 (float)PeerMpu6050.Gx, (float)PeerMpu6050.Gy, (float)PeerMpu6050.Gz,
                 (float)PeerMpu6050.Ax, (float)PeerMpu6050.Ay, (float)PeerMpu6050.Az);
@@ -400,10 +396,8 @@ void LCDBuffer_Thread(void *argument){
 
         // Copy initial vertices and apply accumulated rotations
         static float transformedVertices[4][3];
-
-
-        static char points[60];
-        static char accumulated[60];
+        static char points[60] = {0};
+        static char accumulated[60] = {0};
         DrawStringToBuffer(points, 0, 24 * 5, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         DrawStringToBuffer(accumulated, 0, 24 * 15, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
 		// erase sq
@@ -426,12 +420,9 @@ void LCDBuffer_Thread(void *argument){
         accumulatedAngleZ += (float)PeerMpu6050.Gz * deltaT;
         normalizeAngle(&accumulatedAngleZ);
 
-        for (int i = 0; i < 4; i++) {
-        	//TODO: FIX
-            rotateX(&transformedVertices[i][1], &transformedVertices[i][2], accumulatedAngleX);
-            rotateY(&transformedVertices[i][0], &transformedVertices[i][2], accumulatedAngleY);
-            rotateZ(&transformedVertices[i][0], &transformedVertices[i][1], accumulatedAngleZ);
-        }
+        rotate(transformedVertices, accumulatedAngleX, 0, 0);
+
+
 
         // Project 3D points to 2D and draw
         uint32_t centerX = BSP_LCD_GetXSize() / 2;
@@ -452,13 +443,13 @@ void LCDBuffer_Thread(void *argument){
 
 
 
-        sprintf(points, "V1: (%6.2f, %6.2f) V2: (%6.2f, %6.2f)      V3: (%6.2f, %6.2f) V4: (%6.2f, %6.2f)",
+        sprintf(points, "(%4.0f, %4.0f)(%4.0f, %4.0f)(%4.0f, %4.0f)(%4.0f, %4.0f)",
         		transformedVertices[0][0] - centerX, transformedVertices[0][1] - centerY,
 				transformedVertices[1][0] - centerX, transformedVertices[1][1] - centerY,
 				transformedVertices[2][0] - centerX, transformedVertices[2][1] - centerY,
 				transformedVertices[3][0] - centerX, transformedVertices[3][1] - centerY);
         DrawStringToBuffer(points, 0, 24 * 5, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
-        sprintf(accumulated, "Accum X: %.2f Y: %.2f Z: %.2f", accumulatedAngleX, accumulatedAngleY, accumulatedAngleZ);
+        sprintf(accumulated, "Accum X: %.2f Y: %.2f Z: %.2f cosx: %.2f", accumulatedAngleX, accumulatedAngleY, accumulatedAngleZ, cos(accumulatedAngleX*M_PI/180));
         DrawStringToBuffer(accumulated, 0, 24*15, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
 
 //        DrawRotatingCube(&PeerMpu6050, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize(), BSP_LCD_GetYSize());
@@ -568,27 +559,45 @@ void DrawLineInBuffer(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint32
         if (e2 <= dx) { err += dx; y0 += sy; }
     }
 }
-// 3D rotation functions
-void rotateX(float* y, float* z, float angleX) {
-    float rad = toRadians(angleX);
-    float temp = *y;
-    *y = cos(rad) * (*y) - sin(rad) * (*z);
-    *z = sin(rad) * temp + cos(rad) * (*z);
+
+void rotateVertex(float vertex[3], float angleX, float angleY, float angleZ) {
+    // Convert angles to radians
+    float radX = angleX * M_PI / 180.0;
+    float radY = angleY * M_PI / 180.0;
+    float radZ = angleZ * M_PI / 180.0;
+
+    // Compute sin and cos for each angle
+    float sinX = sin(radX), cosX = cos(radX);
+    float sinY = sin(radY), cosY = cos(radY);
+    float sinZ = sin(radZ), cosZ = cos(radZ);
+
+    // Original coordinates
+    float x = vertex[0], y = vertex[1], z = vertex[2];
+
+    // Rotate around X-axis
+    float newY = y * cosX - z * sinX;
+    float newZ = y * sinX + z * cosX;
+
+    // Rotate around Y-axis
+    float newX = x * cosY + newZ * sinY;
+    newZ = -x * sinY + newZ * cosY;
+
+    // Rotate around Z-axis
+    x = newX * cosZ - newY * sinZ;
+    y = newX * sinZ + newY * cosZ;
+
+    // Update vertex coordinates
+    vertex[0] = x;
+    vertex[1] = y;
+    vertex[2] = newZ;
 }
 
-void rotateY(float* x, float* z, float angleY) {
-    float rad = toRadians(angleY);
-    float temp = *x;
-    *x = cos(rad) * (*x) + sin(rad) * (*z);
-    *z = -sin(rad) * temp + cos(rad) * (*z);
+void rotate(float matrix[4][3], float angleX, float angleY, float angleZ) {
+    for (int i = 0; i < 4; i++) {
+        rotateVertex(matrix[i], angleX, angleY, angleZ);
+    }
 }
 
-void rotateZ(float* x, float* y, float angleZ) {
-    float rad = toRadians(angleZ);
-    float temp = *x;
-    *x = cos(rad) * (*x) - sin(rad) * (*y);
-    *y = sin(rad) * temp + cos(rad) * (*y);
-}
 // Normalize angles to the range [0, 360]
 void normalizeAngle(float* angle) {
     while (*angle >= 360.0f) *angle -= 360.0f;
