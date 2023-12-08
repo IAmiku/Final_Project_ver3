@@ -2,6 +2,7 @@
 
 #include "init.h"
 #include "mpu6050.h"
+#include "math.h"
 
 #include "../Libraries/BSP/STM32F769I-Discovery/stm32f769i_discovery_lcd.h"
 // Defines
@@ -24,6 +25,7 @@ DMA_HandleTypeDef hdma_usart1_rx;
 osThreadId_t GyroThreadHandle;
 osThreadId_t UART_ThreadHandle;
 osThreadId_t LCD_ThreadHandle;
+osThreadId_t PushButton_ThreadHandle;
 
 const osThreadAttr_t Gyro_Thread_attributes = { .name = "Gyro", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
@@ -31,10 +33,15 @@ const osThreadAttr_t UART_Thread_attributes = { .name = "UART", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
 const osThreadAttr_t LCD_Thread_attributes = { .name = "LCD", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 500 * 4 };
+const osThreadAttr_t PushButton_Thread_attributes = { .name = "PushButton", .priority =
+		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
 // Queue Handles
 osMessageQueueId_t uartQueueHandle;
 const osMessageQueueAttr_t uartQueue_attributes = { .name = "mpu6050Queue" };
 // Event Handles
+osEventFlagsId_t pushButtonFlag;
+const osEventFlagsAttr_t pushButton_Event_attributes = { .name = "PushButton",
+		.attr_bits = 0, .cb_mem = NULL, .cb_size = 128 * 4 };
 // Mutex Handles
 // Timer Handles
 
@@ -44,6 +51,7 @@ const osMessageQueueAttr_t uartQueue_attributes = { .name = "mpu6050Queue" };
 void Gyro_Thread(void *argument);
 void UART_Thread(void *argument);
 void LCD_Thread(void *argument);
+void PushButton_Thread(void *argument);
 
 void I2C_init();
 void UART_init();
@@ -60,8 +68,10 @@ int main(void) {
 	UART_ThreadHandle = osThreadNew(UART_Thread, NULL, &UART_Thread_attributes);
 	uartQueueHandle = osMessageQueueNew(1, sizeof(MPU6050_t),
 			&uartQueue_attributes); // unused
-	LCD_ThreadHandle = osThreadNew(LCD_Thread, NULL, &LCD_Thread_attributes );
+	LCD_ThreadHandle = osThreadNew(LCD_Thread, NULL, &LCD_Thread_attributes);
+	PushButton_ThreadHandle = osThreadNew(PushButton_Thread, NULL, &PushButton_Thread_attributes);
 
+	pushButtonFlag = osEventFlagsNew(NULL);
 	osKernelStart();
 
 	while (1) {
@@ -306,6 +316,10 @@ void Gyro_Thread(void *argument) {
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
 
+		if((mpu6050.Gx == 0) && (mpu6050.Gy == 0) && (mpu6050.Gz == 0) && (mpu6050.Ax == 0) && (mpu6050.Ay == 0) && (mpu6050.Az == 0)) {
+			// pass
+		} else {
+
 //
 //		int16_t acc_x = (int16_t) mpu6050.Ax;
 //		int16_t acc_y = (int16_t) mpu6050.Ay;
@@ -332,8 +346,9 @@ void Gyro_Thread(void *argument) {
 
 //		HAL_UART_Transmit_IT(&DISCO_UART, message,strlen(message));
 
-	    HAL_UART_AbortTransmit(&DISCO_UART);// Cancel receving attemp
-		HAL_UART_Transmit_DMA(&DISCO_UART, &mpu6050, sizeof(MPU6050_t));
+			HAL_UART_AbortTransmit(&DISCO_UART);// Cancel receving attemp
+			HAL_UART_Transmit_DMA(&DISCO_UART, &mpu6050, sizeof(MPU6050_t));
+		}
 
 //		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
 		osDelay(100);
@@ -352,19 +367,61 @@ void LCD_Thread(void *argument){
 	BSP_LCD_LayerDefaultInit(0,LCD_FB_START_ADDRESS);
 	BSP_LCD_SelectLayer(0);
 	BSP_LCD_DisplayOn();
-	BSP_LCD_Clear(LCD_COLOR_RED);
+	BSP_LCD_Clear(LCD_COLOR_WHITE);
 
 	BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
 	char text[60] = "G X | G Y | G Z | A X | A Y | A Z";
 	BSP_LCD_DisplayStringAtLine(0, (uint8_t *)text);
+	char angle_text[60] = "X | Y | Z";
+	BSP_LCD_DisplayStringAtLine(2, (uint8_t *) angle_text);
     HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+
+    uint8_t is_first_reading = 1;
+    double gyroScale = 131;
 
 	while(1){
 		osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever); // Wait forever until thread flag 1 is set.
+		uint16_t ax, ay, az, gx, gy, gz, rx, ry, rz;
+		ax = PeerMpu6050.Accel_X_RAW;
+		ay = PeerMpu6050.Accel_Y_RAW;
+	    az = PeerMpu6050.Accel_Z_RAW;
+	    gx = PeerMpu6050.Gyro_X_RAW;
+	    gy = PeerMpu6050.Gyro_Y_RAW;
+	    gz = PeerMpu6050.Gyro_Z_RAW;
+	    double arx, ary, arz, grx, gry, grz, gsx, gsy, gsz, timeStep;
+	    timeStep = .001; // 1kHZ so 1ms timestep
+
+	    gsx = gx/gyroScale;   gsy = gy/gyroScale;   gsz = gz/gyroScale;
+		  // calculate accelerometer angles
+		arx = (180/3.141592) * atan(ax / sqrt(pow(ay, 2) + pow(az, 2)));
+		ary = (180/3.141592) * atan(ay / sqrt(pow(ax, 2) + pow(az, 2)));
+		arz = (180/3.141592) * atan(sqrt(pow(ay, 2) + pow(ax, 2)) / az);
+
+		  // set initial values equal to accel values
+		  if (is_first_reading == 1) {
+		    grx = arx;
+		    gry = ary;
+		    grz = arz;
+		    is_first_reading = 0;
+		  }
+		  // integrate to find the gyro angle
+		  else{
+		    grx = grx + (timeStep * gsx);
+		    gry = gry + (timeStep * gsy);
+		    grz = grz + (timeStep * gsz);
+		  }
+
+		  // apply filter
+		  rx = (uint16_t)((0.96 * arx) + (0.04 * grx));
+		  ry = (uint16_t)((0.96 * ary) + (0.04 * gry));
+		  rz = (uint16_t)((0.96 * arz) + (0.04 * grz));
+
+
 		char* gyro_data[60];
 		int16_t gyro_x = (int16_t) PeerMpu6050.Gx;
 		int16_t gyro_y = (int16_t) PeerMpu6050.Gy;
 		int16_t gyro_z = (int16_t) PeerMpu6050.Gz;
+
 //		sprintf(gyro_data, "Gx: %d, Gy %d, Gz: %d", gyro_x, gyro_y, gyro_z);
 //		BSP_LCD_ClearStringLine(1);
 //		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)gyro_data);
@@ -372,14 +429,43 @@ void LCD_Thread(void *argument){
 		int16_t accel_x = (int16_t) PeerMpu6050.Ax * 9.8;
 		int16_t accel_y = (int16_t) PeerMpu6050.Ay * 9.8;
 		int16_t accel_z = (int16_t) PeerMpu6050.Az * 9.8;
+
+
+
+		if(osEventFlagsGet(pushButtonFlag) == 0x00000001U) {
+			osEventFlagsClear(pushButtonFlag, 0x1);
+			BSP_LCD_ClearStringLine(1);
+			BSP_LCD_ClearStringLine(3);
+		} else {
 //		sprintf(accel_data, "Accel x: %d, Accel y %d, Accel z: %d", accel_x, accel_y, accel_z);
-		char mpu_data[60];
-		sprintf(mpu_data, "%d  %d  %d  %d  %d  %d", gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
-		BSP_LCD_ClearStringLine(1);
-		BSP_LCD_DisplayStringAtLine(1, (uint8_t *)mpu_data);
+			char mpu_data[60];
+			sprintf(mpu_data, "%d    %d    %d     %d     %d     %d", gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
+			BSP_LCD_ClearStringLine(1);
+			BSP_LCD_DisplayStringAtLine(1, (uint8_t *)mpu_data);
+
+			char angles[60];
+			sprintf(angles, "%d  %d  %d", rx, ry, rz);
+			BSP_LCD_ClearStringLine(3);
+			BSP_LCD_DisplayStringAtLine(3, (uint8_t *)angles);
+		}
 	}
 }
 
+
+void PushButton_Thread(void *argument) {
+	// PA0 button init
+	GPIO_InitTypeDef GPIO_InitStruct = { .Pin = GPIO_PIN_0, .Mode =
+			GPIO_MODE_IT_RISING_FALLING, .Pull = GPIO_NOPULL };
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
+
+void EXTI0_IRQHandler(void) {
+	// When External interrupt 0 happened
+	// Set flag here [EVENT]
+	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);  // Clear the interrupt flag
+	osEventFlagsSet(pushButtonFlag, 0x00000001U);
+
+}
 
 void HAL_Delay( uint32_t ulDelayMs )
 {
