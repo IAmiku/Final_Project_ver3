@@ -404,10 +404,8 @@ void LCDBuffer_Thread(void *argument){
         // Update and normalize the accumulated angles
         accumulatedAngleX += (float)PeerMpu6050.Gx * deltaT;
         normalizeAngle(&accumulatedAngleX);
-
         accumulatedAngleY += (float)PeerMpu6050.Gy * deltaT;
         normalizeAngle(&accumulatedAngleY);
-
         accumulatedAngleZ += (float)PeerMpu6050.Gz * deltaT;
         normalizeAngle(&accumulatedAngleZ);
 
@@ -419,6 +417,14 @@ void LCDBuffer_Thread(void *argument){
             vertices[2][0] = SQUARE_SIZE / 2;  vertices[2][1] = SQUARE_SIZE / 2;  vertices[2][2] = 0;
             vertices[3][0] = -SQUARE_SIZE / 2; vertices[3][1] = SQUARE_SIZE / 2;  vertices[3][2] = 0;
 
+
+            // Draw the transformed square
+            for (int i = 0; i < 4; i++) {
+                int next = (i + 1) % 4;
+                DrawLineInBuffer((uint16_t)vertices[i][0], (uint16_t)vertices[i][1],
+                                 (uint16_t)vertices[next][0], (uint16_t)vertices[next][1],
+                                 0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+            }
 
         // Apply 3D rotations based on accumulated angles
         for (int i = 0; i < 4; i++) {
@@ -442,7 +448,7 @@ void LCDBuffer_Thread(void *argument){
                              (uint16_t)vertices[next][0], (uint16_t)vertices[next][1],
                              0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         }
-        sprintf(points, "V1: (%6.2f, %6.2f) V2: (%6.2f, %6.2f)      V3: (%6.2f, %6.2f) V4: (%4.2f, %6.2f)",
+        sprintf(points, "V1: (%6.2f, %6.2f) V2: (%6.2f, %6.2f)      V3: (%6.2f, %6.2f) V4: (%6.2f, %6.2f)",
                 vertices[0][0] - centerX, vertices[0][1] - centerY,
                 vertices[1][0] - centerX, vertices[1][1] - centerY,
                 vertices[2][0] - centerX, vertices[2][1] - centerY,
