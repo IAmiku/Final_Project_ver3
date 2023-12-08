@@ -381,7 +381,7 @@ void LCDBuffer_Thread(void *argument){
 
     	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
     	DrawStringToBuffer(text, 0, 0, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
-        static char mpu_data[60];
+        static char mpu_data[60]={0};
         DrawStringToBuffer(mpu_data, 0, 24, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         sprintf(mpu_data, "%6.2f %6.2f %6.2f %6.2f %6.2f %6.2f",
                 (float)PeerMpu6050.Gx, (float)PeerMpu6050.Gy, (float)PeerMpu6050.Gz,
