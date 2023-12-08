@@ -607,6 +607,9 @@ void EXTI0_IRQHandler(void) {
 	// Set flag here [EVENT]
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);  // Clear the interrupt flag
 	osEventFlagsSet(pushButtonFlag, 0x00000001U);
+	accumulatedAngleX = 0;
+	accumulatedAngleY = 0;
+	accumulatedAngleZ = 0;
 }
 
 void HAL_Delay( uint32_t ulDelayMs )
