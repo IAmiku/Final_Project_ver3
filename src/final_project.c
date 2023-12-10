@@ -376,7 +376,11 @@ void LCDBuffer_Thread(void *argument){
                              (uint16_t)transformedVertices[endVertex][0], (uint16_t)transformedVertices[endVertex][1],
                              0xFFFF00FF, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         }
+
+        // cube side adjustment
         totalAccMem = 0.7*totalAccMem+0.3*totalAcc;
+        if(totalAccMem<0)totalAccMem = 0;
+        if(totalAccMem>5)totalAccMem = 2;
         double side = SQUARE_SIZE*(totalAccMem);
 
         // New cube
