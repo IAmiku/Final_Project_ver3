@@ -69,7 +69,6 @@ const osMessageQueueAttr_t uartQueue_attributes = { .name = "mpu6050Queue" };
 osEventFlagsId_t pushButtonFlag;
 const osEventFlagsAttr_t pushButton_Event_attributes = { .name = "PushButton",
 		.attr_bits = 0, .cb_mem = NULL, .cb_size = 128 * 4 };
-osSemaphoreId_t mpuDataSemaphore;
 
 // Mutex Handles
 osMutexId_t frameBufferMutex; // Mutex to protect the frame buffer
@@ -92,9 +91,6 @@ void UART_init();
 
 int main(void) {
 	Sys_Init();
-
-//	HAL_NVIC_SetPriority(SysTick_IRQn, 0,1);
-
 	// Initialize peripherals
 	osKernelInitialize();
 	// Setup RTOS objects
@@ -105,7 +101,6 @@ int main(void) {
 	const osSemaphoreAttr_t mpuDataSemaphore_attributes = {
 	    .name = "mpuDataSemaphore"
 	};
-//	mpuDataSemaphore = osSemaphoreNew(1, 0, &mpuDataSemaphore_attributes);
 
 	//display
     frameBufferMutex = osMutexNew(&frameBufferMutex_attributes);
@@ -323,18 +318,13 @@ void Gyro_Thread(void *argument) {
 	MPU6050_Init(&hi2c1);
 	uint8_t message [100];
 //    TickType_t xLastWakeTime;
-//    const TickType_t xFrequency = pdMS_TO_TICKS(1000);
+//    const TickType_t xFrequency = pdMS_TO_TICKS(20);
 	osDelay(100);
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
-//		if((mpu6050.Gx == 0) && (mpu6050.Gy == 0) && (mpu6050.Gz == 0) && (mpu6050.Ax == 0) && (mpu6050.Ay == 0) && (mpu6050.Az == 0)) {
-//			// pass
-//		} else {
-			HAL_UART_AbortTransmit(&DISCO_UART);// Cancel receving attemp
-			HAL_UART_Transmit_DMA(&DISCO_UART, &mpu6050, sizeof(MPU6050_t));
-//		}
-
-//		vTaskDelayUntil(&xLastWakeTime, xFrequency);// TODO: fix later
+		HAL_UART_AbortTransmit(&DISCO_UART);// DMA bug
+		HAL_UART_Transmit_DMA(&DISCO_UART, &mpu6050, sizeof(MPU6050_t));
+//		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		osDelay(20);
 	}
 }
@@ -355,12 +345,9 @@ void LCDBuffer_Thread(void *argument){
     uint32_t frameBufferHeight = BSP_LCD_GetYSize();
 
     while(1) {
-      osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever); // Wait for new MPU6050 data
+		osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever); // Wait for new MPU6050 data
 
-      osMutexAcquire(frameBufferMutex, osWaitForever);
-
-        // Clear the buffer
-//        memset((void*)LCD_FB_START_ADDRESS, 0, FRAME_BUFFER_SIZE);
+		osMutexAcquire(frameBufferMutex, osWaitForever);
 
     	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
 //    	BSP_LCD_DisplayStringAt(0,0,text,0x03);
@@ -379,7 +366,7 @@ void LCDBuffer_Thread(void *argument){
         static char accumulated[60] = {0};
 //        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
 
-		// erase sq
+		// erase cube
         for (int i = 0; i < 12; i++) {
             int startVertex = edges[i][0];
             int endVertex = edges[i][1];
@@ -390,15 +377,15 @@ void LCDBuffer_Thread(void *argument){
         totalAccMem = 0.7*totalAccMem+0.3*totalAcc;
         double side = SQUARE_SIZE*(totalAccMem);
 
-            transformedVertices[0][0] = -side / 2; transformedVertices[0][1] = -side / 2; transformedVertices[0][2] = -side / 2; // Vertex 0
-            transformedVertices[1][0] = side / 2;  transformedVertices[1][1] = -side / 2; transformedVertices[1][2] = -side / 2; // Vertex 1
-            transformedVertices[2][0] = side / 2;  transformedVertices[2][1] = side / 2;  transformedVertices[2][2] = -side / 2; // Vertex 2
-            transformedVertices[3][0] = -side / 2; transformedVertices[3][1] = side / 2;  transformedVertices[3][2] = -side / 2; // Vertex 3
-            transformedVertices[4][0] = -side / 2; transformedVertices[4][1] = -side / 2; transformedVertices[4][2] = side / 2;  // Vertex 4
-            transformedVertices[5][0] = side / 2;  transformedVertices[5][1] = -side / 2; transformedVertices[5][2] = side / 2;  // Vertex 5
-            transformedVertices[6][0] = side / 2;  transformedVertices[6][1] = side / 2;  transformedVertices[6][2] = side / 2;  // Vertex 6
-            transformedVertices[7][0] = -side / 2; transformedVertices[7][1] = side / 2;  transformedVertices[7][2] = side / 2;  // Vertex 7
-//        memcpy(transformedVertices, initialVertices, sizeof(initialVertices));
+        // New cube
+		transformedVertices[0][0] = -side / 2; transformedVertices[0][1] = -side / 2; transformedVertices[0][2] = -side / 2; // Vertex 0
+		transformedVertices[1][0] = side / 2;  transformedVertices[1][1] = -side / 2; transformedVertices[1][2] = -side / 2; // Vertex 1
+		transformedVertices[2][0] = side / 2;  transformedVertices[2][1] = side / 2;  transformedVertices[2][2] = -side / 2; // Vertex 2
+		transformedVertices[3][0] = -side / 2; transformedVertices[3][1] = side / 2;  transformedVertices[3][2] = -side / 2; // Vertex 3
+		transformedVertices[4][0] = -side / 2; transformedVertices[4][1] = -side / 2; transformedVertices[4][2] = side / 2;  // Vertex 4
+		transformedVertices[5][0] = side / 2;  transformedVertices[5][1] = -side / 2; transformedVertices[5][2] = side / 2;  // Vertex 5
+		transformedVertices[6][0] = side / 2;  transformedVertices[6][1] = side / 2;  transformedVertices[6][2] = side / 2;  // Vertex 6
+		transformedVertices[7][0] = -side / 2; transformedVertices[7][1] = side / 2;  transformedVertices[7][2] = side / 2;  // Vertex 7
 
         // Update accumulated angles
         double deltaT = 0.03;
@@ -448,9 +435,7 @@ void LCDBuffer_Thread(void *argument){
                              (uint16_t)transformedVertices[endVertex][0], (uint16_t)transformedVertices[endVertex][1],
                              0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         }
-
-
-
+//		//Print vertices
 //        sprintf(points, "%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f",
 //        		transformedVertices[0][0] - centerX, transformedVertices[0][1] - centerY,
 //				transformedVertices[1][0] - centerX, transformedVertices[1][1] - centerY,
@@ -461,6 +446,7 @@ void LCDBuffer_Thread(void *argument){
 //				transformedVertices[6][0] - centerX, transformedVertices[6][1] - centerY,
 //				transformedVertices[7][0] - centerX, transformedVertices[7][1] - centerY);
 //        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+
         DrawStringToBuffer(accumulated, 0, 24 * 15, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         sprintf(accumulated, "Accum X: %.2f Y: %.2f Z: %.2f cosx: %.2f",
         		accumulatedAngleX,
@@ -476,6 +462,7 @@ void LCDBuffer_Thread(void *argument){
 }
 
 void LCDRefresh_Thread(void *argument) {
+	// Initlize LCD
 	BSP_LCD_Init();
 	BSP_LCD_LayerDefaultInit(0,LCD_FB_START_ADDRESS);
 	BSP_LCD_SelectLayer(0);
@@ -485,7 +472,7 @@ void LCDRefresh_Thread(void *argument) {
 	uint32_t color = 0xFFFF00FF;
 	uint32_t frameBufferWidth = BSP_LCD_GetXSize();
 	uint32_t frameBufferHeight = BSP_LCD_GetYSize();
-
+	// Clear the screen by writing directly into memoery
 	for (uint32_t y = 0; y < frameBufferHeight; y++) {
 	    for (uint32_t x = 0; x < frameBufferWidth; x++) {
 	    	((uint32_t*)LCD_FB_START_ADDRESS)[y * frameBufferWidth + x] = color;
