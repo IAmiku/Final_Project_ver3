@@ -158,7 +158,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-// Dont care
+// Don't care
 }
 
 
@@ -339,7 +339,7 @@ void UART_Thread(void *argument) {
 }
 
 void LCDBuffer_Thread(void *argument){
-	HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
+	HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t)); // Get ready to receive Buffer
 	// ensure that the LCD is initialized
 	osDelay(1000);
     uint32_t frameBufferWidth = BSP_LCD_GetXSize();
@@ -480,7 +480,7 @@ void LCDRefresh_Thread(void *argument) {
 	}
 
     while (1) {
-//    	//Failed attemp to use double fram buffer
+//    	//Failed attempt to use double frame buffer
 //    	osMutexAcquire(frameBufferMutex, osWaitForever);
 //
 ////    	BSP_LCD_DrawBitmap(0, 0, (uint8_t *)LCD_FB_START_ADDRESS);
