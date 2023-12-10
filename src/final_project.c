@@ -408,9 +408,6 @@ void LCDBuffer_Thread(void *argument){
         normalizeAngle(&accumulatedAngleZ);
         }
         totalAcc=sqrt(PeerMpu6050.Ax + sqrt( PeerMpu6050.Ay*PeerMpu6050.Ay+PeerMpu6050.Az*PeerMpu6050.Az));
-        accumulatedAngleX=accumulatedAngleX+0.2;
-        accumulatedAngleY=accumulatedAngleY+0.2;
-        accumulatedAngleZ=accumulatedAngleZ+0.2;
 
 
 
