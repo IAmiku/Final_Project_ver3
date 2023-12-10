@@ -1,4 +1,0 @@
-../src/init.c:24:6:SystemClock_Config	4
-../src/init.c:65:6:CPU_CACHE_Enable	3
-../src/init.c:93:6:Clock_Inits	1
-../src/init.c:74:6:Sys_Init	1

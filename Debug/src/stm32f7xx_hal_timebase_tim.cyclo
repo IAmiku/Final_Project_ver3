@@ -1,4 +1,0 @@
-../src/stm32f7xx_hal_timebase_tim.c:42:19:HAL_InitTick	2
-../src/stm32f7xx_hal_timebase_tim.c:94:6:HAL_SuspendTick	1
-../src/stm32f7xx_hal_timebase_tim.c:106:6:HAL_ResumeTick	1
-../src/stm32f7xx_hal_timebase_tim.c:112:6:TIM7_IRQHandler	1

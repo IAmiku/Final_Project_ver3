@@ -41,12 +41,10 @@ void setup() {
 
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
-
   // Init ESP-NOW
   if (esp_now_init() != ESP_OK) {
     return;
   }
-  
   // Register peer
   esp_now_peer_info_t peerInfo;
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
@@ -55,7 +53,6 @@ void setup() {
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     return;
   }
-
   // Register for a callback function that will be called when data is received
   esp_now_register_recv_cb(OnDataRecv);
 }

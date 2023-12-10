@@ -18,16 +18,18 @@ static double accumulatedAngleX = 0.0f;
 static double accumulatedAngleY = 0.0f;
 static double accumulatedAngleZ = 0.0f;
 static double totalAcc =0.0f;
-static const double initialVertices[8][3] = {
-    {-SQUARE_SIZE / 2, -SQUARE_SIZE / 2, -SQUARE_SIZE / 2}, // Vertex 0
-    {SQUARE_SIZE / 2, -SQUARE_SIZE / 2, -SQUARE_SIZE / 2},  // Vertex 1
-    {SQUARE_SIZE / 2, SQUARE_SIZE / 2, -SQUARE_SIZE / 2},   // Vertex 2
-    {-SQUARE_SIZE / 2, SQUARE_SIZE / 2, -SQUARE_SIZE / 2},  // Vertex 3
-    {-SQUARE_SIZE / 2, -SQUARE_SIZE / 2, SQUARE_SIZE / 2},  // Vertex 4
-    {SQUARE_SIZE / 2, -SQUARE_SIZE / 2, SQUARE_SIZE / 2},   // Vertex 5
-    {SQUARE_SIZE / 2, SQUARE_SIZE / 2, SQUARE_SIZE / 2},    // Vertex 6
-    {-SQUARE_SIZE / 2, SQUARE_SIZE / 2, SQUARE_SIZE / 2}    // Vertex 7
-};
+static double totalAccMem = 1.0f;
+//static const double initialVertices[8][3] = {
+//    {-SQUARE_SIZE / 2, -SQUARE_SIZE / 2, -SQUARE_SIZE / 2}, // Vertex 0
+//    {SQUARE_SIZE / 2, -SQUARE_SIZE / 2, -SQUARE_SIZE / 2},  // Vertex 1
+//    {SQUARE_SIZE / 2, SQUARE_SIZE / 2, -SQUARE_SIZE / 2},   // Vertex 2
+//    {-SQUARE_SIZE / 2, SQUARE_SIZE / 2, -SQUARE_SIZE / 2},  // Vertex 3
+//    {-SQUARE_SIZE / 2, -SQUARE_SIZE / 2, SQUARE_SIZE / 2},  // Vertex 4
+//    {SQUARE_SIZE / 2, -SQUARE_SIZE / 2, SQUARE_SIZE / 2},   // Vertex 5
+//    {SQUARE_SIZE / 2, SQUARE_SIZE / 2, SQUARE_SIZE / 2},    // Vertex 6
+//    {-SQUARE_SIZE / 2, SQUARE_SIZE / 2, SQUARE_SIZE / 2}    // Vertex 7
+//};
+
 static const int edges[12][2] = {
      {0, 1}, {1, 2}, {2, 3}, {3, 0}, // Bottom face edges
      {4, 5}, {5, 6}, {6, 7}, {7, 4}, // Top face edges
@@ -245,8 +247,8 @@ void DMA_init() {
 	hdma_usart6_tx.Init.Priority = DMA_PRIORITY_LOW;
 	hdma_usart6_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	hdma_usart6_tx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
-	hdma_usart6_tx.Init.MemBurst = DMA_MBURST_SINGLE;
-	hdma_usart6_tx.Init.PeriphBurst = DMA_PBURST_SINGLE;
+	hdma_usart6_tx.Init.MemBurst = DMA_MBURST_INC16;
+	hdma_usart6_tx.Init.PeriphBurst = DMA_PBURST_INC16;
 	// Configure the DMA stream for UART RX
 	hdma_usart6_rx.Instance = DMA2_Stream1;
 	hdma_usart6_rx.Init.Channel = DMA_CHANNEL_5;
@@ -259,8 +261,8 @@ void DMA_init() {
 	hdma_usart6_rx.Init.Priority = DMA_PRIORITY_HIGH;
 	hdma_usart6_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	hdma_usart6_rx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
-	hdma_usart6_rx.Init.MemBurst = DMA_MBURST_SINGLE;
-	hdma_usart6_rx.Init.PeriphBurst = DMA_PBURST_SINGLE;
+	hdma_usart6_rx.Init.MemBurst = DMA_MBURST_INC16;
+	hdma_usart6_rx.Init.PeriphBurst = DMA_PBURST_INC16;
 
 	////////////////////////////////////////ENABLE DMA INTRRUPT//////////////////////////////////////////////
 	HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);    // UART RX
@@ -271,7 +273,6 @@ void DMA_init() {
     HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 6, 2);
 	HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);    // USB TX
     HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 6, 3);
-
 
 	// Init both DMA
 	HAL_DMA_Init(&hdma_usart1_rx);
@@ -326,12 +327,9 @@ void Gyro_Thread(void *argument) {
 	osDelay(100);
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
-
 //		if((mpu6050.Gx == 0) && (mpu6050.Gy == 0) && (mpu6050.Gz == 0) && (mpu6050.Ax == 0) && (mpu6050.Ay == 0) && (mpu6050.Az == 0)) {
 //			// pass
 //		} else {
-
-
 			HAL_UART_AbortTransmit(&DISCO_UART);// Cancel receving attemp
 			HAL_UART_Transmit_DMA(&DISCO_UART, &mpu6050, sizeof(MPU6050_t));
 //		}
@@ -365,6 +363,7 @@ void LCDBuffer_Thread(void *argument){
 //        memset((void*)LCD_FB_START_ADDRESS, 0, FRAME_BUFFER_SIZE);
 
     	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
+//    	BSP_LCD_DisplayStringAt(0,0,text,0x03);
     	DrawStringToBuffer(text, 0, 0, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         static char mpu_data[60]={0};
         DrawStringToBuffer(mpu_data, 0, 24, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
@@ -388,7 +387,8 @@ void LCDBuffer_Thread(void *argument){
                              (uint16_t)transformedVertices[endVertex][0], (uint16_t)transformedVertices[endVertex][1],
                              0xFFFF00FF, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         }
-        double side = SQUARE_SIZE*totalAcc;
+        totalAccMem = 0.7*totalAccMem+0.3*totalAcc;
+        double side = SQUARE_SIZE*(totalAccMem);
 
             transformedVertices[0][0] = -side / 2; transformedVertices[0][1] = -side / 2; transformedVertices[0][2] = -side / 2; // Vertex 0
             transformedVertices[1][0] = side / 2;  transformedVertices[1][1] = -side / 2; transformedVertices[1][2] = -side / 2; // Vertex 1
@@ -398,32 +398,26 @@ void LCDBuffer_Thread(void *argument){
             transformedVertices[5][0] = side / 2;  transformedVertices[5][1] = -side / 2; transformedVertices[5][2] = side / 2;  // Vertex 5
             transformedVertices[6][0] = side / 2;  transformedVertices[6][1] = side / 2;  transformedVertices[6][2] = side / 2;  // Vertex 6
             transformedVertices[7][0] = -side / 2; transformedVertices[7][1] = side / 2;  transformedVertices[7][2] = side / 2;  // Vertex 7
-
-
-
-
 //        memcpy(transformedVertices, initialVertices, sizeof(initialVertices));
-
-
 
         // Update accumulated angles
         double deltaT = 0.03;
         // Update and normalize the accumulated angles
-//        if(PeerMpu6050.Gx>5||PeerMpu6050.Gx<5)
-//        {
+        if(PeerMpu6050.Gx>0.1||PeerMpu6050.Gx<0.1)
+        {
         accumulatedAngleX = accumulatedAngleX + PeerMpu6050.Gx * deltaT;
         normalizeAngle(&accumulatedAngleX);
-//    		}
-//        if(PeerMpu6050.Gy>5||PeerMpu6050.Gy<5)
-//        {
+    		}
+        if(PeerMpu6050.Gy>0.1||PeerMpu6050.Gy<0.1)
+        {
         accumulatedAngleY = accumulatedAngleY + PeerMpu6050.Gy * deltaT;
         normalizeAngle(&accumulatedAngleY);
-//    		}
-//        if(PeerMpu6050.Gz>5||PeerMpu6050.Gy<5)
-//        {
+    		}
+        if(PeerMpu6050.Gz>0.1||PeerMpu6050.Gy<0.1)
+        {
         accumulatedAngleZ = accumulatedAngleZ + PeerMpu6050.Gz * deltaT;
         normalizeAngle(&accumulatedAngleZ);
-//        }
+        }
         totalAcc=sqrt(PeerMpu6050.Ax + sqrt( PeerMpu6050.Ay*PeerMpu6050.Ay+PeerMpu6050.Az*PeerMpu6050.Az));
 //        accumulatedAngleX=accumulatedAngleX+0.2;
 //        accumulatedAngleY=accumulatedAngleY+0.2;
@@ -516,7 +510,6 @@ void DrawStringToBuffer(char* str, uint16_t x, uint16_t y, uint32_t textColor, u
     sFONT *pFont = BSP_LCD_GetFont(); // Get the current font
     uint16_t charWidth = pFont->Width;
     uint16_t charHeight = pFont->Height;
-
     while (*str) {
         if (*str < ' ' || *str > '~') {
             str++;
@@ -541,7 +534,7 @@ void DrawCharToBuffer(uint16_t x, uint16_t y, uint8_t* charBitmap,
     for (uint16_t i = 0; i < charHeight; i++) {
         for (uint16_t j = 0; j < charWidth; j++) {
             uint16_t bit = (charBitmap[i * ((charWidth + 7) / 8) + j / 8] >> (7 - j % 8)) & 0x1;
-            if(!bit)continue;
+            if(!bit)continue;// Skip non bit
             uint32_t color = textColor;
             uint32_t *pixel = buffer + (y + i) * bufferWidth + (x + j);
             if ((x + j) < bufferWidth) {
@@ -572,20 +565,7 @@ void DrawLineInBuffer(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint32
     }
 }
 
-void rotateVertex(double vertex[3], double angleX, double angleY, double angleZ) {
-    // Convert angles from degrees to radians
-    double radX = ((double)angleX) * M_PI / 180.0;
-    double radY = ((double)angleY) * M_PI / 180.0;
-    double radZ = ((double)angleZ) * M_PI / 180.0;
-
-    // Compute sin and cos for each angle
-    double sinX = sin(radX);
-    double cosX = cos(radX);
-    double sinY = sin(radY);
-    double cosY = cos(radY);
-    double sinZ = sin(radZ);
-    double cosZ = cos(radZ);
-
+void rotateVertex(double vertex[3], double sinX, double cosX, double sinY, double cosY, double sinZ, double cosZ) {
     // Original coordinates
     double x = vertex[0];
     double y = vertex[1];
@@ -609,10 +589,22 @@ void rotateVertex(double vertex[3], double angleX, double angleY, double angleZ)
     vertex[2] = newZ;
 }
 
-
 void rotate(double matrix[8][3], double angleX, double angleY, double angleZ) {
+    // Convert angles from degrees to radians
+    double radX = angleX * M_PI / 180.0;
+    double radY = angleY * M_PI / 180.0;
+    double radZ = angleZ * M_PI / 180.0;
+
+    // Compute sin and cos for each angle
+    double sinX = sin(radX);
+    double cosX = cos(radX);
+    double sinY = sin(radY);
+    double cosY = cos(radY);
+    double sinZ = sin(radZ);
+    double cosZ = cos(radZ);
+
     for (int i = 0; i < 8; i++) {
-        rotateVertex(matrix[i], angleX, angleY, angleZ);
+        rotateVertex(matrix[i], sinX, cosX, sinY, cosY, sinZ, cosZ);
     }
 }
 
