@@ -164,7 +164,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 
 void I2C_init() {
 	GPIO_InitTypeDef gpio_init;
-
+	// I2C initialization
 	hi2c1.Instance = I2C1;
 	hi2c1.Init.Timing = 0x00506682;
 	hi2c1.Init.OwnAddress1 = 0;
@@ -317,8 +317,9 @@ void Gyro_Thread(void *argument) {
 	I2C_init();
 	MPU6050_Init(&hi2c1);
 	uint8_t message [100];
-//    TickType_t xLastWakeTime;
-//    const TickType_t xFrequency = pdMS_TO_TICKS(20);
+//	//RTOS precise time control
+//  TickType_t xLastWakeTime;
+//  const TickType_t xFrequency = pdMS_TO_TICKS(20);
 	osDelay(100);
 	while(1) {
 		MPU6050_Read_All(&hi2c1, &mpu6050);
@@ -339,7 +340,7 @@ void UART_Thread(void *argument) {
 
 void LCDBuffer_Thread(void *argument){
 	HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
-
+	// ensure that the LCD is initialized
 	osDelay(1000);
     uint32_t frameBufferWidth = BSP_LCD_GetXSize();
     uint32_t frameBufferHeight = BSP_LCD_GetYSize();
@@ -350,7 +351,7 @@ void LCDBuffer_Thread(void *argument){
 		osMutexAcquire(frameBufferMutex, osWaitForever);
 
     	char text[60] = "  G X |  G Y |  G Z |  A X |  A Y |  A Z";
-//    	BSP_LCD_DisplayStringAt(0,0,text,0x03);
+//    	BSP_LCD_DisplayStringAt(0,0,text,0x03);	// BSP error example
     	DrawStringToBuffer(text, 0, 0, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         static char mpu_data[60]={0};
         DrawStringToBuffer(mpu_data, 0, 24, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
@@ -364,7 +365,8 @@ void LCDBuffer_Thread(void *argument){
         static double transformedVertices[8][3];
         static char points[80] = {0};
         static char accumulated[60] = {0};
-//        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+      //Clear printed vertices on the screen
+      DrawStringToBuffer(points, 0, 24 * 5, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
 
 		// erase cube
         for (int i = 0; i < 12; i++) {
@@ -406,9 +408,9 @@ void LCDBuffer_Thread(void *argument){
         normalizeAngle(&accumulatedAngleZ);
         }
         totalAcc=sqrt(PeerMpu6050.Ax + sqrt( PeerMpu6050.Ay*PeerMpu6050.Ay+PeerMpu6050.Az*PeerMpu6050.Az));
-//        accumulatedAngleX=accumulatedAngleX+0.2;
-//        accumulatedAngleY=accumulatedAngleY+0.2;
-//        accumulatedAngleZ=accumulatedAngleZ+0.2;
+        accumulatedAngleX=accumulatedAngleX+0.2;
+        accumulatedAngleY=accumulatedAngleY+0.2;
+        accumulatedAngleZ=accumulatedAngleZ+0.2;
 
 
 
@@ -435,17 +437,18 @@ void LCDBuffer_Thread(void *argument){
                              (uint16_t)transformedVertices[endVertex][0], (uint16_t)transformedVertices[endVertex][1],
                              0xFFFFFF00, (uint32_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         }
-//		//Print vertices
-//        sprintf(points, "%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f",
-//        		transformedVertices[0][0] - centerX, transformedVertices[0][1] - centerY,
-//				transformedVertices[1][0] - centerX, transformedVertices[1][1] - centerY,
-//				transformedVertices[2][0] - centerX, transformedVertices[2][1] - centerY,
-//				transformedVertices[3][0] - centerX, transformedVertices[3][1] - centerY,
-//        		transformedVertices[4][0] - centerX, transformedVertices[4][1] - centerY,
-//				transformedVertices[5][0] - centerX, transformedVertices[5][1] - centerY,
-//				transformedVertices[6][0] - centerX, transformedVertices[6][1] - centerY,
-//				transformedVertices[7][0] - centerX, transformedVertices[7][1] - centerY);
-//        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
+
+		//Print vertices on the screen
+        sprintf(points, "%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f|%4.0f %4.0f",
+        		transformedVertices[0][0] - centerX, transformedVertices[0][1] - centerY,
+				transformedVertices[1][0] - centerX, transformedVertices[1][1] - centerY,
+				transformedVertices[2][0] - centerX, transformedVertices[2][1] - centerY,
+				transformedVertices[3][0] - centerX, transformedVertices[3][1] - centerY,
+        		transformedVertices[4][0] - centerX, transformedVertices[4][1] - centerY,
+				transformedVertices[5][0] - centerX, transformedVertices[5][1] - centerY,
+				transformedVertices[6][0] - centerX, transformedVertices[6][1] - centerY,
+				transformedVertices[7][0] - centerX, transformedVertices[7][1] - centerY);
+        DrawStringToBuffer(points, 0, 24 * 5, 0xFFFFFF00, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
 
         DrawStringToBuffer(accumulated, 0, 24 * 15, 0xFFFF00FF, (uint8_t*)LCD_FB_START_ADDRESS, BSP_LCD_GetXSize());
         sprintf(accumulated, "Accum X: %.2f Y: %.2f Z: %.2f cosx: %.2f",
@@ -480,6 +483,7 @@ void LCDRefresh_Thread(void *argument) {
 	}
 
     while (1) {
+//    	//Failed attemp to use double fram buffer
 //    	osMutexAcquire(frameBufferMutex, osWaitForever);
 //
 ////    	BSP_LCD_DrawBitmap(0, 0, (uint8_t *)LCD_FB_START_ADDRESS);
