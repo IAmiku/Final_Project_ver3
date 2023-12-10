@@ -41,7 +41,7 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef DISCO_UART; // USART6
 DMA_HandleTypeDef hdma_usart6_tx;
 DMA_HandleTypeDef hdma_usart6_rx;
-DMA_HandleTypeDef hdma_usart1_tx; // For testing purporses
+DMA_HandleTypeDef hdma_usart1_tx; // For testing purposes
 DMA_HandleTypeDef hdma_usart1_rx;
 
 // Thread Handles
@@ -151,7 +151,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 //	HAL_UART_Receive_IT(&USB_UART, &buffer, 1);
 	1;
 	if(huart->Instance==USART6){
-	    HAL_UART_AbortReceive(&DISCO_UART);// Cancel receving attemp
+	    HAL_UART_AbortReceive(&DISCO_UART);// Cancel receiving attempt
 		HAL_UART_Receive_DMA(&DISCO_UART, &PeerMpu6050 , sizeof(MPU6050_t));// Get ready to receive Buffer
 		osThreadFlagsSet(LCDBuffer_ThreadHandle, 0x00000001U);
 	}
